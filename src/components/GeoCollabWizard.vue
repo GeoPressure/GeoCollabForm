@@ -496,7 +496,7 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                   >
                     Swiss Ornithological Institute (SOI)
                   </a>
-                  for collaborative geolocator research.
+                  for collaborative multi-sensor geolocator research.
                 </li>
                 <li>
                   Its main goal is to expand knowledge of bird migration in data-poor species and
@@ -547,10 +547,10 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                     Zenodo (GeoLocator-DP community) </a
                   >, typically with an embargo until first publications.
                 </li>
-                <li>Collaborators are welcome tolead species-level publications.</li>
+                <li>Collaborators are welcome to lead species-level publications.</li>
                 <li>
                   At the same time, data is available for broad multi-species analyses for
-                  researcher at SOI.
+                  researchers at SOI.
                 </li>
               </ul>
             </section>
@@ -575,7 +575,7 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                 <h3>What we are looking for</h3>
               </div>
               <ul class="collab-list">
-                <li>Target poorly known species or regions.</li>
+                <li>Target poorly known species or regions, as detailed on the next pages.</li>
                 <li>Have high recapture feasibility.</li>
                 <li>Fill key gaps in migration knowledge.</li>
               </ul>
