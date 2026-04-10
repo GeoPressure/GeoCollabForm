@@ -403,6 +403,24 @@ a:hover {
   color: #7f1d1d !important;
 }
 
+.submit-alert.submit-alert--pending {
+  border-inline-start: 5px solid #d97706 !important;
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%) !important;
+  color: #fff7ed !important;
+}
+
+.submit-alert-pending-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.submit-alert--pending :is(.v-progress-circular, .v-progress-circular__overlay) {
+  color: #fff7ed !important;
+}
+
 .v-sheet,
 .v-card {
   background-color: var(--gc-color-surface, #ffffff) !important;

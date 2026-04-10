@@ -903,11 +903,19 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
           </v-alert>
           <v-alert
             v-if="submissionState === 'pending'"
-            type="info"
-            variant="tonal"
-            class="mt-4 submit-alert"
+            variant="flat"
+            class="mt-4 submit-alert submit-alert--pending"
           >
-            Submission is still in progress. Keep this tab open until confirmation appears.
+            <div class="submit-alert-pending-content">
+              <v-progress-circular
+                indeterminate
+                :size="20"
+                :width="2.5"
+                color="white"
+                aria-label="Submission in progress"
+              />
+              <span>Submission is still in progress. Keep this tab open until confirmation appears.</span>
+            </div>
           </v-alert>
           <v-alert
             v-if="submissionState === 'success'"
