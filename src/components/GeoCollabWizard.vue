@@ -284,12 +284,16 @@ onBeforeUnmount(() => {
   }
 });
 
-watch([step, draft, contextReadConfirmed, contextAlignConfirmed], () => {
-  if (submissionState.value === "success") return;
-  schedulePersistWizardState();
-}, {
-  deep: true,
-});
+watch(
+  [step, draft, contextReadConfirmed, contextAlignConfirmed],
+  () => {
+    if (submissionState.value === "success") return;
+    schedulePersistWizardState();
+  },
+  {
+    deep: true,
+  },
+);
 
 function buildSubmissionPayload() {
   const species = selectedSpecies.value;
@@ -476,9 +480,9 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
           <div class="collab-intro-content">
             <p>
               This intake helps determine whether your project is a strong fit for collaboration
-              within the GeoCollab program. Submission does not guarantee support: not all
-              projects can be accommodated, and selection also depends on the number of
-              applications received and our internal capacity.
+              within the GeoCollab program. Submission does not guarantee support: not all projects
+              can be accommodated, and selection also depends on the number of applications received
+              and our internal capacity.
             </p>
 
             <section class="collab-section">
@@ -488,13 +492,13 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
               </div>
               <ul class="collab-list">
                 <li>
-                  GeoCollab is a project of the
+                  GeoCollab is
                   <a
-                    href="https://www.vogelwarte.ch/en/research/bird-migration/geolocators/"
+                    href="https://www.vogelwarte.ch/en/projects/tracking-least-known-species/"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Swiss Ornithological Institute (SOI)
+                    a project of the Swiss Ornithological Institute (SOI)
                   </a>
                   for collaborative multi-sensor geolocator research.
                 </li>
@@ -676,7 +680,10 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                   />
                   <span class="species-check-label">{{ item.label }}</span>
                 </div>
-                <div v-if="item.label === 'Body mass' && item.emphasis" class="species-check-metrics">
+                <div
+                  v-if="item.label === 'Body mass' && item.emphasis"
+                  class="species-check-metrics"
+                >
                   <div class="species-check-metric-main">{{ item.emphasis.weight }}</div>
                   <div class="species-check-metric-side">
                     <div class="species-check-metric-pct">{{ item.emphasis.loggerPct }}</div>
@@ -870,11 +877,7 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
               />
             </v-col>
             <v-col cols="12" md="6">
-              <v-text-field
-                v-model="draft.contact.address"
-                label="Address"
-                density="comfortable"
-              />
+              <v-text-field v-model="draft.contact.address" label="Address" density="comfortable" />
             </v-col>
           </v-row>
 
@@ -914,7 +917,10 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                 color="white"
                 aria-label="Submission in progress"
               />
-              <span>Submission is still in progress. Keep this tab open until confirmation appears.</span>
+              <span
+                >Submission is still in progress. Keep this tab open until confirmation
+                appears.</span
+              >
             </div>
           </v-alert>
           <v-alert
@@ -949,7 +955,9 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
         <v-btn
           v-else
           color="primary"
-          :disabled="!canContinueCurrentStep || isSubmitting || isSubmissionLocked || isSubmissionPending"
+          :disabled="
+            !canContinueCurrentStep || isSubmitting || isSubmissionLocked || isSubmissionPending
+          "
           :loading="isSubmitting"
           data-testid="submit-btn"
           @click="submitForm"
