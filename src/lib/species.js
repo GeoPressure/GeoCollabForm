@@ -98,10 +98,10 @@ export function buildSpeciesFeedback(species) {
 
   const items = [
     {
-      label: "Areal species",
+      label: "Aerial species",
       text: species.is_areal
-        ? `${species.common_name} is flagged as areal and is therefore likely not a suitable candidate species for multi-sensor logger.`
-        : `${species.common_name} is not flagged as areal feeding species. Pressure-based geolocation is adequate.`,
+        ? `${species.common_name} is flagged as aerial and is therefore likely not a suitable candidate species for a multi-sensor logger.`
+        : `${species.common_name} is not flagged as an aerial feeding species. Pressure-based geolocation is adequate.`,
       tone: arealTone,
     },
     {

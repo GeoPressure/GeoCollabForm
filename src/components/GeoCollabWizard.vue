@@ -462,14 +462,41 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
 <template>
   <v-container class="wizard-container py-8">
     <v-sheet class="wizard-shell" border rounded="lg" elevation="1">
-      <header class="wizard-header pa-4 pa-md-6">
-        <h1 class="page-title">GeoCollab Collaboration Intake</h1>
-        <p class="page-subtitle">Evaluate potential collaborations within GeoCollab.</p>
-        <p class="wizard-step-meta">
-          Step {{ step }} of {{ STEPS.length }} · {{ STEPS[step - 1]?.title }}
-        </p>
+      <header class="wizard-header">
+        <div class="wizard-hero">
+          <div class="wizard-hero__backdrop" aria-hidden="true" />
+          <a
+            class="wizard-brand wizard-brand--top"
+            href="https://www.vogelwarte.ch/en/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <div class="wizard-brand__mark">
+              <img
+                src="/SchweizerischeVogelwarteSmall.svg"
+                alt="Swiss Ornithological Institute logo"
+                class="wizard-brand__logo"
+              />
+            </div>
+            <div class="wizard-brand__text">Swiss Ornithological Institute</div>
+          </a>
+          <div class="wizard-hero__content pa-4 pa-md-6">
+            <h1 class="page-title">GeoCollab Collaboration Intake</h1>
+            <p class="wizard-step-meta">
+              Step {{ step }} of {{ STEPS.length }} · {{ STEPS[step - 1]?.title }}
+            </p>
 
-        <v-progress-linear color="primary" :model-value="progressValue" height="7" rounded />
+            <v-progress-linear
+              color="primary"
+              bg-color="white"
+              :bg-opacity="0.28"
+              :model-value="progressValue"
+              height="7"
+              rounded
+              class="wizard-progress"
+            />
+          </div>
+        </div>
       </header>
 
       <div class="wizard-step-panel">
@@ -507,14 +534,14 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                   regions.
                 </li>
                 <li>This is done by building standardized, reproducible, and reusable datasets.</li>
-                <li>Support both species-specific studies and large-scale comparative analyses.</li>
+                <li>It supports both species-specific studies and large-scale comparative analyses.</li>
               </ul>
             </section>
 
             <section class="collab-section">
               <div class="collab-section-title">
                 <v-icon icon="mdi-account-group-outline" size="18" color="primary" />
-                <h3>How the collaboration works?</h3>
+                <h3>How does the collaboration work?</h3>
               </div>
               <ul class="collab-list">
                 <li>The Swiss Ornithological Institute provides geolocators free of charge.</li>
@@ -713,7 +740,7 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
         <section v-show="step === 3" data-testid="step-3">
           <h2 class="step-title">3. Location</h2>
           <p class="step-description">
-            Click on the map to indicate main location of deployment. Change the radius to indicate
+            Click on the map to indicate the main deployment location. Change the radius to show
             the size of the study area.
           </p>
 

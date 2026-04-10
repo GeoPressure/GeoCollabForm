@@ -72,7 +72,7 @@ A searchable select field with:
 Data source
 
 A local species dataset bundled with the website. Each species entry should include at least:
-. avibase_id
+• avibase_id
 • common_name
 • scientific_name
 • body_mass_g
@@ -85,18 +85,18 @@ First body_mass_g:
 • < 12 g → Not possible (cannot continue)
 • 12 to < 30 g → Possible but quite light for multi-sensor (continue)
 • 30 to 100 g → Great species (continue)
-• > 100 g → Not really sutable for geolocator (cannot continue)
+• > 100 g → Not really suitable for a geolocator (cannot continue)
 
 Then tagged_previously:
 
 - "" : great (continue)
-- "light-only"(already equiped with light-level) orange, but continue
-- "multi-sensor" (already equiped) orange, but continue
+- "light-only" (already equipped with light-level) orange, but continue
+- "multi-sensor" (already equipped) orange, but continue
 
 Then priority_species:
 
 - 1: not really of interest (orange, continue)
-- 2: Strong candiate (green, continue)
+- 2: Strong candidate (green, continue)
 - 3: Strong interest, we really want this! (green, continue)
 
 UI component suggestion
@@ -128,10 +128,10 @@ The user should be able to:
 
 - drag the circle edge (four corners)
 
-- input for lcoation name (pre-filled based on search/location)
-- country (pre-filled (but ediable)
+- input for location name (pre-filled based on search/location)
+- country (pre-filled, but editable)
 
-- Based on continent/country, we would display a message: Region of interest (anythin outside north-western)
+- Based on continent/country, we would display a message: Region of interest (anything outside north-western Europe)
 
 ⸻
 
