@@ -31,6 +31,7 @@ const submissionState = ref("idle");
 const lastSubmissionPayload = ref(null);
 const contextReadConfirmed = ref(false);
 const contextAlignConfirmed = ref(false);
+const recaptureFeasibilityConfirmed = ref(false);
 let saveTimerId = null;
 
 const selectedSpecies = computed(() => speciesById.get(draft.species.avibase_id));
@@ -80,7 +81,11 @@ function hasPositiveNumber(value) {
 }
 
 function stepOneValid() {
-  return contextReadConfirmed.value && contextAlignConfirmed.value;
+  return (
+    contextReadConfirmed.value &&
+    contextAlignConfirmed.value &&
+    recaptureFeasibilityConfirmed.value
+  );
 }
 
 function stepTwoValid() {
@@ -606,8 +611,11 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                 <h3>What we are looking for</h3>
               </div>
               <ul class="collab-list">
+                <li>
+                  Suitable projects involve individuals that can be recaptured in a subsequent
+                  year at breeding or non-breeding locations. Migrating birds are not suitable.
+                </li>
                 <li>Target poorly known species or regions, as detailed on the next pages.</li>
-                <li>Have high recapture feasibility.</li>
                 <li>Fill key gaps in migration knowledge.</li>
               </ul>
             </section>
@@ -630,6 +638,13 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                 hide-details
                 class="collab-confirm"
                 label="I confirm that my project aligns with these expectations."
+              />
+              <v-checkbox
+                v-model="recaptureFeasibilityConfirmed"
+                density="compact"
+                hide-details
+                class="collab-confirm"
+                label="I confirm realistic inter-annual recapture feasibility."
               />
             </section>
           </div>
