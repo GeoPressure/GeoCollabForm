@@ -979,33 +979,47 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
 
       <v-divider />
       <footer class="wizard-nav">
-        <v-btn variant="text" :disabled="step === 1" data-testid="back-btn" @click="goBack">
-          Back
-        </v-btn>
-        <v-spacer />
+        <p v-if="step < STEPS.length" class="privacy-note privacy-note--footer">
+          This form stores your in-progress draft locally in your browser. If you use the map,
+          location search requests are sent to Mapbox.
+        </p>
+        <p v-else class="privacy-note privacy-note--footer">
+          By submitting, you agree that the information in this form will be sent to a private
+          Google account managed by the form administrator, who will use it to assess your
+          proposal, contact you about it, and share it with the Swiss Ornithological Institute if
+          relevant for the collaboration process. Draft answers remain stored only in this browser
+          until you submit or clear them.
+        </p>
 
-        <v-btn
-          v-if="step < STEPS.length"
-          color="primary"
-          :disabled="!canContinueCurrentStep"
-          data-testid="continue-btn"
-          @click="goNext"
-        >
-          Continue
-        </v-btn>
+        <div class="wizard-nav__actions">
+          <v-btn variant="text" :disabled="step === 1" data-testid="back-btn" @click="goBack">
+            Back
+          </v-btn>
+          <v-spacer />
 
-        <v-btn
-          v-else
-          color="primary"
-          :disabled="
-            !canContinueCurrentStep || isSubmitting || isSubmissionLocked || isSubmissionPending
-          "
-          :loading="isSubmitting"
-          data-testid="submit-btn"
-          @click="submitForm"
-        >
-          {{ isSubmissionLocked ? "Submitted" : "Submit" }}
-        </v-btn>
+          <v-btn
+            v-if="step < STEPS.length"
+            color="primary"
+            :disabled="!canContinueCurrentStep"
+            data-testid="continue-btn"
+            @click="goNext"
+          >
+            Continue
+          </v-btn>
+
+          <v-btn
+            v-else
+            color="primary"
+            :disabled="
+              !canContinueCurrentStep || isSubmitting || isSubmissionLocked || isSubmissionPending
+            "
+            :loading="isSubmitting"
+            data-testid="submit-btn"
+            @click="submitForm"
+          >
+            {{ isSubmissionLocked ? "Submitted" : "Submit" }}
+          </v-btn>
+        </div>
       </footer>
     </v-sheet>
   </v-container>

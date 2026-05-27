@@ -64,6 +64,13 @@ a:hover {
   color: var(--gc-color-muted, #60716d);
 }
 
+.privacy-note {
+  margin: 0 0 14px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--gc-color-muted, #60716d);
+}
+
 .species-scope-note {
   margin-top: -6px;
   font-size: 0.84rem;
@@ -210,13 +217,24 @@ a:hover {
 
 .wizard-nav {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   border-top: 1px solid var(--gc-color-border, #d7dfda);
   padding: 12px 14px;
+  gap: 10px;
+}
+
+.wizard-nav__actions {
+  display: flex;
+  align-items: center;
 }
 
 .wizard-nav .v-btn--disabled {
   opacity: 0.45;
+}
+
+.privacy-note--footer {
+  margin: 0;
 }
 
 .project-simple-stack {
