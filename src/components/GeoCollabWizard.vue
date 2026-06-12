@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import packageJson from "../../package.json";
 import joinedSpeciesCsv from "../data/avilist_soi_avonet_joined.csv?raw";
 import { buildSpeciesFeedback } from "../lib/species";
 import { parseSpeciesRecordsFromJoinedCsv } from "../lib/speciesCatalog";
@@ -19,6 +20,7 @@ const STEPS = [
 const WIZARD_STORAGE_KEY = "geocollab:wizard:v1";
 const STORAGE_SAVE_DEBOUNCE_MS = 300;
 const SUBMISSION_FOREGROUND_WAIT_MS = 1800;
+const APP_VERSION = packageJson.version;
 
 const speciesRecords = parseSpeciesRecordsFromJoinedCsv(joinedSpeciesCsv);
 const speciesById = new Map(speciesRecords.map((item) => [item.avibase_id, item]));
@@ -32,6 +34,7 @@ const lastSubmissionPayload = ref(null);
 const contextReadConfirmed = ref(false);
 const contextAlignConfirmed = ref(false);
 const recaptureFeasibilityConfirmed = ref(false);
+const privacyStatementConfirmed = ref(false);
 let saveTimerId = null;
 
 const selectedSpecies = computed(() => speciesById.get(draft.species.avibase_id));
@@ -124,6 +127,29 @@ function stepFiveValid() {
   );
 }
 
+const stepFiveValidationMessages = computed(() => {
+  const messages = [];
+  if (isBlank(draft.contact.full_name)) messages.push("Enter your full name.");
+  if (isBlank(draft.contact.address)) messages.push("Enter your address.");
+  if (isBlank(draft.contact.email)) {
+    messages.push("Enter your email address.");
+  } else if (!isValidEmail(draft.contact.email)) {
+    messages.push("Enter a valid email address.");
+  }
+  return messages;
+});
+
+const submitValidationMessages = computed(() => {
+  const messages = [...stepFiveValidationMessages.value];
+  if (!privacyStatementConfirmed.value) {
+    messages.push("Read and confirm the privacy statement.");
+  }
+  if (!hasGoogleSheetsWebhook.value) {
+    messages.push("Submission is not configured yet.");
+  }
+  return messages;
+});
+
 function isStepValid(stepIndex) {
   if (stepIndex === 1) return stepOneValid();
   if (stepIndex === 2) return stepTwoValid();
@@ -134,6 +160,12 @@ function isStepValid(stepIndex) {
 }
 
 const canContinueCurrentStep = computed(() => isStepValid(step.value));
+const canSubmitFinalStep = computed(
+  () =>
+    canContinueCurrentStep.value &&
+    privacyStatementConfirmed.value &&
+    hasGoogleSheetsWebhook.value,
+);
 
 function goBack() {
   if (step.value > 1) {
@@ -896,6 +928,8 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                 v-model="draft.contact.full_name"
                 label="Full name"
                 density="comfortable"
+                :error="isBlank(draft.contact.full_name)"
+                :error-messages="isBlank(draft.contact.full_name) ? ['Full name is required.'] : []"
               />
             </v-col>
             <v-col cols="12" md="6">
@@ -904,8 +938,14 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                 label="Email"
                 type="email"
                 density="comfortable"
-                :error="draft.contact.email.length > 0 && !isValidEmail(draft.contact.email)"
-                error-messages=""
+                :error="isBlank(draft.contact.email) || !isValidEmail(draft.contact.email)"
+                :error-messages="
+                  isBlank(draft.contact.email)
+                    ? ['Email is required.']
+                    : !isValidEmail(draft.contact.email)
+                      ? ['Enter a valid email address.']
+                      : []
+                "
               />
             </v-col>
           </v-row>
@@ -919,7 +959,13 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
               />
             </v-col>
             <v-col cols="12" md="6">
-              <v-text-field v-model="draft.contact.address" label="Address" density="comfortable" />
+              <v-text-field
+                v-model="draft.contact.address"
+                label="Address"
+                density="comfortable"
+                :error="isBlank(draft.contact.address)"
+                :error-messages="isBlank(draft.contact.address) ? ['Address is required.'] : []"
+              />
             </v-col>
           </v-row>
 
@@ -931,6 +977,55 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
             rows="3"
             density="comfortable"
           />
+          <div class="submit-consent-panel">
+            <v-checkbox
+              v-model="privacyStatementConfirmed"
+              density="comfortable"
+              hide-details
+              class="collab-confirm submit-consent-checkbox"
+            >
+              <template #label>
+                <span
+                  >I have read and understood the
+                  <a
+                    href="https://www.vogelwarte.ch/en/privacy-statement/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    @click.stop
+                    >Swiss Ornithological Institute privacy statement</a
+                  >.</span
+                >
+              </template>
+            </v-checkbox>
+            <v-alert
+              v-if="submitValidationMessages.length > 0"
+              type="warning"
+              variant="tonal"
+              density="compact"
+              class="submit-consent-alert"
+            >
+              <ul class="submit-consent-list">
+                <li v-for="message in submitValidationMessages" :key="message">
+                  {{ message }}
+                </li>
+              </ul>
+            </v-alert>
+            <div class="submit-consent-actions">
+              <v-btn
+                color="primary"
+                size="large"
+                :disabled="
+                  !canSubmitFinalStep || isSubmitting || isSubmissionLocked || isSubmissionPending
+                "
+                :loading="isSubmitting"
+                class="submit-consent-button"
+                data-testid="submit-btn"
+                @click="submitForm"
+              >
+                {{ isSubmissionLocked ? "Submitted" : "Submit" }}
+              </v-btn>
+            </div>
+          </div>
           <v-alert
             v-if="submissionState === 'error'"
             type="error"
@@ -979,18 +1074,6 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
 
       <v-divider />
       <footer class="wizard-nav">
-        <p v-if="step < STEPS.length" class="privacy-note privacy-note--footer">
-          This form stores your in-progress draft locally in your browser. If you use the map,
-          location search requests are sent to Mapbox.
-        </p>
-        <p v-else class="privacy-note privacy-note--footer">
-          By submitting, you agree that the information in this form will be sent to a private
-          Google account managed by the form administrator, who will use it to assess your
-          proposal, contact you about it, and share it with the Swiss Ornithological Institute if
-          relevant for the collaboration process. Draft answers remain stored only in this browser
-          until you submit or clear them.
-        </p>
-
         <div class="wizard-nav__actions">
           <v-btn variant="text" :disabled="step === 1" data-testid="back-btn" @click="goBack">
             Back
@@ -1006,21 +1089,27 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
           >
             Continue
           </v-btn>
-
-          <v-btn
-            v-else
-            color="primary"
-            :disabled="
-              !canContinueCurrentStep || isSubmitting || isSubmissionLocked || isSubmissionPending
-            "
-            :loading="isSubmitting"
-            data-testid="submit-btn"
-            @click="submitForm"
-          >
-            {{ isSubmissionLocked ? "Submitted" : "Submit" }}
-          </v-btn>
         </div>
       </footer>
     </v-sheet>
+    <footer class="page-legal-footer">
+      <p class="legal-note"><a
+          href="https://www.vogelwarte.ch/en/projects/geocollab/"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GeoCollab project</a
+        ><span class="legal-note__separator">|</span><a
+          href="https://www.vogelwarte.ch/en/privacy-statement/"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Privacy statement</a
+        ><span class="legal-note__separator">|</span><a
+          href="https://www.vogelwarte.ch/modx/en/vogelwarte/impressum"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Legal notice</a
+        ><span class="legal-note__separator">|</span><span>Version {{ APP_VERSION }}</span
+        ><span class="legal-note__separator">|</span><span>&copy; 2026 GeoCollab</span></p>
+    </footer>
   </v-container>
 </template>
