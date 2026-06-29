@@ -46,11 +46,11 @@ TARGET_ORDERS = {
     "Bucerotiformes",
 }
 
-AREAL_ORDERS = {
+AERIAL_ORDERS = {
     "Apodiformes",
 }
 
-AREAL_FAMILIES = {
+AERIAL_FAMILIES = {
     "Hirundinidae",
     "Meropidae",
 }
@@ -265,7 +265,7 @@ def join_tables(
         mass = avonet_by_sci.get(sci)
         if mass is None:
             mass = avonet_by_avibase.get(row["avibase_id"])
-        is_areal = row["order_name"] in AREAL_ORDERS or row["family_name"] in AREAL_FAMILIES
+        is_aerial = row["order_name"] in AERIAL_ORDERS or row["family_name"] in AERIAL_FAMILIES
 
         soi_raw = soi.get("soi_number_loggers_approx_raw", "")
         tagged_previously = "multi-sensor" if soi_raw else ""
@@ -274,7 +274,7 @@ def join_tables(
             {
                 "order_name": row["order_name"],
                 "family_name": row["family_name"],
-                "is_areal": is_areal,
+                "is_aerial": is_aerial,
                 "avibase_id": row["avibase_id"],
                 "ebird_species_code": row.get("ebird_species_code", ""),
                 "birds_of_the_world_url": row.get("birds_of_the_world_url", ""),
@@ -295,7 +295,7 @@ def write_csv(rows: List[dict], path: Path) -> None:
     fieldnames = [
         "order_name",
         "family_name",
-        "is_areal",
+        "is_aerial",
         "avibase_id",
         "ebird_species_code",
         "birds_of_the_world_url",

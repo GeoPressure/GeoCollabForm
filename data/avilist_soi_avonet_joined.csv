@@ -1,4 +1,4 @@
-order_name,family_name,is_areal,avibase_id,ebird_species_code,birds_of_the_world_url,common_name,scientific_name,soi_number_loggers_approx_raw,body_mass_g,tagged_previously
+order_name,family_name,is_aerial,avibase_id,ebird_species_code,birds_of_the_world_url,common_name,scientific_name,soi_number_loggers_approx_raw,body_mass_g,tagged_previously
 Apodiformes,Apodidae,True,AVIBASE-DEE4829A,afrswi1,https://birdsoftheworld.org/bow/species/afrswi1/,African Black Swift,Apus barbatus,,42.8,
 Apodiformes,Apodidae,True,AVIBASE-DA106373,afpswi1,https://birdsoftheworld.org/bow/species/afpswi1/,African Palm Swift,Cypsiurus parvus,,13.6,
 Apodiformes,Trochilidae,True,AVIBASE-C25794D5,allhum,https://birdsoftheworld.org/bow/species/allhum/,Allen's Hummingbird,Selasphorus sasin,,3.4,

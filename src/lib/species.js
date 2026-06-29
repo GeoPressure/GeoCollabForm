@@ -17,7 +17,7 @@ function assessSpeciesMass(bodyMassG) {
   if (!Number.isFinite(bodyMassG) || bodyMassG <= 0) {
     return {
       tone: "warning",
-      label: "No body mass available.",
+      label: "No body mass data available.",
       hardFail: false,
       points: 0,
     };
@@ -26,7 +26,7 @@ function assessSpeciesMass(bodyMassG) {
   if (bodyMassG < 12) {
     return {
       tone: "error",
-      label: "Species is too light for our loggers.",
+      label: "Species is too light for our geolocators.",
       hardFail: true,
       points: 0,
     };
@@ -35,7 +35,7 @@ function assessSpeciesMass(bodyMassG) {
   if (bodyMassG > 100) {
     return {
       tone: "warning",
-      label: "Warning: species likely too heavy for this collaboration setup.",
+      label: "Species is likely too heavy for this collaboration setup.",
       hardFail: false,
       points: 0,
     };
@@ -44,7 +44,7 @@ function assessSpeciesMass(bodyMassG) {
   if (selectLoggerMassG(bodyMassG) === 0.6) {
     return {
       tone: "warning",
-      label: "Species would require a more expensive light-weight logger. We require a stronger justification of novelty.",
+      label: "Species would require a more expensive lightweight geolocator. This requires a stronger novelty justification.",
       hardFail: false,
       points: 5,
     };
@@ -62,7 +62,7 @@ function assessSpeciesMass(bodyMassG) {
 
   return {
     tone: "success",
-    label: "Body mass is within the acceptable logger threshold (<= 5%).",
+    label: "Body mass is within the acceptable logger threshold (< 5%).",
     hardFail: false,
     points: 15,
   };
@@ -74,7 +74,7 @@ function taggedFeedback(species) {
   }
 
   if (species.tagged_previously === "multi-sensor") {
-    return `${species.common_name} has already been tagged with multi-sensors. Only projects targeting a distinct population with a different migration route are likely to be considered.`;
+    return `${species.common_name} has already been tagged with multi-sensor geolocators. Only projects targeting a distinct population with a different migration route are likely to be considered.`;
   }
 
   return "Not previously tagged.";
@@ -88,7 +88,7 @@ export function buildSpeciesFeedback(species) {
   const mass = assessSpeciesMass(species.body_mass_g);
   const loggerMassG = selectLoggerMassG(species.body_mass_g);
   const loggerPct = loggerMassPercentage(species.body_mass_g);
-  const arealTone = species.is_areal ? "warning" : "success";
+  const aerialTone = species.is_aerial ? "warning" : "success";
   const taggedTone =
     species.tagged_previously === "multi-sensor"
       ? "warning"
@@ -99,10 +99,10 @@ export function buildSpeciesFeedback(species) {
   const items = [
     {
       label: "Aerial species",
-      text: species.is_areal
-        ? `${species.common_name} is flagged as aerial and is therefore likely not a suitable candidate species for a multi-sensor logger.`
+      text: species.is_aerial
+        ? `${species.common_name} is classified as an aerial species and is therefore unlikely to be a suitable candidate for a multi-sensor geolocator.`
         : `${species.common_name} is not flagged as an aerial feeding species. Pressure-based geolocation is adequate.`,
-      tone: arealTone,
+      tone: aerialTone,
     },
     {
       label: "Body mass",
@@ -122,15 +122,19 @@ export function buildSpeciesFeedback(species) {
   ];
 
   let finalTone = "success";
-  let finalText = "Strong candidate species for this setup based on current checks.";
+  let finalText = "Strong candidate species for multi-sensor geolocator.";
 
   if (mass.hardFail) {
     finalTone = "error";
-    finalText = "Not feasible for this setup because body mass is outside the required range.";
+    finalText = "Not feasible for multi-sensor geolocator because body mass is outside the required range.";
+  } else if (species.is_aerial) {
+    finalTone = "warning";
+    finalText =
+      "Not a strong candidate species. Aerial foraging limits the suitability for pressure-based geolocation.";
   } else if (mass.tone === "warning" || taggedTone === "warning") {
     finalTone = "warning";
     finalText =
-      "Possible candidate species, but requires stronger justification on both novelty and feasibility.";
+      "Possible candidate species, but it requires stronger justification for both novelty and feasibility.";
   }
 
   return {

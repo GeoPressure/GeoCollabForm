@@ -82,7 +82,7 @@ export function parseSpeciesRecordsFromJoinedCsv(csvRaw) {
       family_name: cell(row, 'family_name'),
       common_name: commonName,
       scientific_name: scientificName,
-      is_areal: parseBoolean(cell(row, 'is_areal')),
+      is_aerial: parseBoolean(cell(row, 'is_aerial')),
       soi_number_loggers_approx_raw: cell(row, 'soi_number_loggers_approx_raw'),
       body_mass_g: bodyMass,
       tagged_previously: taggedPreviously

@@ -538,7 +538,7 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
 
       <div class="wizard-step-panel">
         <section v-show="step === 1" data-testid="step-1">
-          <h2 class="step-title">1. GeoCollab Project Context</h2>
+          <h2 class="step-title">1. GeoCollab project context</h2>
           <p class="step-description">Review the key GeoCollab criteria below before continuing.</p>
 
           <div class="collab-intro-content">
@@ -617,8 +617,8 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                 </li>
                 <li>Collaborators are welcome to lead species-level publications.</li>
                 <li>
-                  At the same time, data is available for broad multi-species analyses for
-                  researchers at SOI.
+                  The data are also available for broad multi-species analyses by researchers at
+                  SOI.
                 </li>
               </ul>
             </section>
@@ -626,7 +626,7 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
             <section class="collab-section">
               <div class="collab-section-title">
                 <v-icon icon="mdi-package-variant-closed-check" size="18" color="primary" />
-                <h3>What is expected from collaborators</h3>
+                <h3>What is expected of collaborators</h3>
               </div>
               <ul class="collab-list">
                 <li>Conduct reliable fieldwork (capture, tagging, recapture).</li>
@@ -647,7 +647,7 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                   Suitable projects involve individuals that can be recaptured in a subsequent
                   year at breeding or non-breeding locations. Migrating birds are not suitable.
                 </li>
-                <li>Target poorly known species or regions, as detailed on the next pages.</li>
+                <li>Target poorly known species or regions, as outlined in the following steps.</li>
                 <li>Fill key gaps in migration knowledge.</li>
               </ul>
             </section>
@@ -676,7 +676,7 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                 density="compact"
                 hide-details
                 class="collab-confirm"
-                label="I confirm realistic inter-annual recapture feasibility."
+                label="I confirm that inter-annual recapture is realistically feasible."
               />
             </section>
           </div>
@@ -702,8 +702,8 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
             :hide-no-data="speciesSearch.trim().length < 1"
             :no-data-text="
               speciesSearch.trim().length < 1
-                ? 'Type at least 1 letter to search'
-                : 'No species found'
+                ? 'Type at least one letter to search.'
+                : 'No species found.'
             "
             clearable
             density="comfortable"
@@ -838,7 +838,7 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
         </section>
 
         <section v-show="step === 4" data-testid="step-4">
-          <h2 class="step-title">4. Project Details</h2>
+          <h2 class="step-title">4. Project details</h2>
           <p class="step-description">
             Provide a concise project narrative focusing on novelty and feasibility.
           </p>
@@ -909,7 +909,7 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
         </section>
 
         <section v-show="step === 5" data-testid="step-5">
-          <h2 class="step-title">5. Contact Information</h2>
+          <h2 class="step-title">5. Contact information</h2>
           <p class="step-description">Provide contact details for follow-up.</p>
           <v-alert
             v-if="!hasGoogleSheetsWebhook"
