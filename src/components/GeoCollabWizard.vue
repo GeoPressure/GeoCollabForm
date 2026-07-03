@@ -85,9 +85,7 @@ function hasPositiveNumber(value) {
 
 function stepOneValid() {
   return (
-    contextReadConfirmed.value &&
-    contextAlignConfirmed.value &&
-    recaptureFeasibilityConfirmed.value
+    contextReadConfirmed.value && contextAlignConfirmed.value && recaptureFeasibilityConfirmed.value
   );
 }
 
@@ -162,9 +160,7 @@ function isStepValid(stepIndex) {
 const canContinueCurrentStep = computed(() => isStepValid(step.value));
 const canSubmitFinalStep = computed(
   () =>
-    canContinueCurrentStep.value &&
-    privacyStatementConfirmed.value &&
-    hasGoogleSheetsWebhook.value,
+    canContinueCurrentStep.value && privacyStatementConfirmed.value && hasGoogleSheetsWebhook.value,
 );
 
 function goBack() {
@@ -571,7 +567,9 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                   regions.
                 </li>
                 <li>This is done by building standardized, reproducible, and reusable datasets.</li>
-                <li>It supports both species-specific studies and large-scale comparative analyses.</li>
+                <li>
+                  It supports both species-specific studies and large-scale comparative analyses.
+                </li>
               </ul>
             </section>
 
@@ -644,8 +642,9 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
               </div>
               <ul class="collab-list">
                 <li>
-                  Suitable projects involve individuals that can be recaptured in a subsequent
-                  year at breeding or non-breeding locations. Migrating birds are not suitable.
+                  Suitable projects involve individuals that can be recaptured in a subsequent year
+                  at breeding or non-breeding locations. Equipping birds during active migration is
+                  typically not suitable.
                 </li>
                 <li>Target poorly known species or regions, as outlined in the following steps.</li>
                 <li>Fill key gaps in migration knowledge.</li>
@@ -684,12 +683,21 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
 
         <section v-show="step === 2" data-testid="step-2">
           <h2 class="step-title">2. Species</h2>
+          <v-alert
+            icon="mdi-close-circle"
+            variant="outlined"
+            density="compact"
+            class="mb-4 species-scope-alert"
+            style="border: 1px solid var(--gc-color-border, #d7dfda)"
+          >
+            Seabirds and waders are not supported as exposure to sea salt is likely to damage the
+            sensors.
+            <div class="mt-1 species-scope-alert__note">
+              Species supported are limited to the following orders: Passeriformes, Apodiformes,
+              Caprimulgiformes, Coraciiformes, Piciformes, Strigiformes, and Bucerotiformes.
+            </div>
+          </v-alert>
           <p class="step-description">Select your focal species to assess feasibility.</p>
-          <p class="step-description species-scope-note">
-            <v-icon icon="mdi-information-outline" size="14" class="species-scope-note-icon" />
-            Included species are limited to the following orders: Passeriformes, Apodiformes,
-            Caprimulgiformes, Coraciiformes, Piciformes, Strigiformes, and Bucerotiformes.
-          </p>
 
           <v-autocomplete
             v-model="draft.species.avibase_id"
@@ -787,8 +795,8 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
         <section v-show="step === 3" data-testid="step-3">
           <h2 class="step-title">3. Location</h2>
           <p class="step-description">
-            Click on the map to indicate the main deployment location. Change the radius to show
-            the size of the study area.
+            Click on the map to indicate the main deployment location. Change the radius to show the
+            size of the study area.
           </p>
 
           <MapboxLocationPicker
@@ -1093,23 +1101,40 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
       </footer>
     </v-sheet>
     <footer class="page-legal-footer">
-      <p class="legal-note"><a
+      <p class="legal-note">
+        <a
           href="https://www.vogelwarte.ch/en/projects/geocollab/"
           target="_blank"
           rel="noopener noreferrer"
           >GeoCollab project</a
-        ><span class="legal-note__separator">|</span><a
+        ><span class="legal-note__separator">|</span
+        ><a
           href="https://www.vogelwarte.ch/en/privacy-statement/"
           target="_blank"
           rel="noopener noreferrer"
           >Privacy statement</a
-        ><span class="legal-note__separator">|</span><a
+        ><span class="legal-note__separator">|</span
+        ><a
           href="https://www.vogelwarte.ch/modx/en/vogelwarte/impressum"
           target="_blank"
           rel="noopener noreferrer"
           >Legal notice</a
         ><span class="legal-note__separator">|</span><span>Version {{ APP_VERSION }}</span
-        ><span class="legal-note__separator">|</span><span>&copy; 2026 GeoCollab</span></p>
+        ><span class="legal-note__separator">|</span><span>&copy; 2026 GeoCollab</span>
+      </p>
     </footer>
   </v-container>
 </template>
+
+<style scoped>
+.species-scope-alert :deep(.v-alert__prepend),
+.species-scope-alert :deep(.v-icon) {
+  color: rgb(var(--v-theme-error));
+}
+
+.species-scope-alert__note {
+  color: rgba(var(--v-theme-on-surface), 0.62);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+</style>

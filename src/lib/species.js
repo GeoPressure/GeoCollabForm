@@ -35,7 +35,7 @@ function assessSpeciesMass(bodyMassG) {
   if (bodyMassG > 100) {
     return {
       tone: "warning",
-      label: "Species is likely too heavy for this collaboration setup.",
+      label: "Species is likely too heavy for this collaboration setup. Satellite tracking is likely a better option and does not require recapture.",
       hardFail: false,
       points: 0,
     };
@@ -109,7 +109,9 @@ export function buildSpeciesFeedback(species) {
       text: mass.label,
       tone: mass.tone,
       emphasis: {
-        weight: Number.isFinite(species.body_mass_g) ? `${species.body_mass_g.toFixed(1)} g` : "No data",
+        weight: Number.isFinite(species.body_mass_g)
+          ? `${species.body_mass_g > 100 ? species.body_mass_g.toFixed(0) : species.body_mass_g.toFixed(1)} g`
+          : "No data",
         loggerPct: Number.isFinite(species.body_mass_g) ? `${loggerPct.toFixed(1)}%` : "NA",
         caption: `of body mass (${loggerMassG.toFixed(1)} g logger)`,
       },
