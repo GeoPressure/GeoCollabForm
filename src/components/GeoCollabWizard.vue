@@ -335,6 +335,7 @@ function buildSubmissionPayload() {
     submitted_at_iso: new Date().toISOString(),
     species_common_name: species?.common_name || "",
     species_body_mass_g: Number.isFinite(species?.body_mass_g) ? species.body_mass_g : null,
+    species_migration_status: species?.migration || "",
     species_birds_of_the_world_url: species?.birds_of_the_world_url || "",
     location_site_name: draft.location.site_name,
     location_country: draft.location.country,
@@ -766,13 +767,22 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                   v-if="item.label === 'Body mass' && item.emphasis"
                   class="species-check-metrics"
                 >
-                  <div class="species-check-metric-main">{{ item.emphasis.weight }}</div>
+                  <div :class="`species-check-metric-main species-check-metric-main--${item.tone}`">
+                    {{ item.emphasis.weight }}
+                  </div>
                   <div class="species-check-metric-side">
                     <div class="species-check-metric-pct">{{ item.emphasis.loggerPct }}</div>
                     <div class="species-check-metric-caption">{{ item.emphasis.caption }}</div>
                   </div>
                 </div>
-                <p class="species-check-text mb-0">{{ item.text }}</p>
+                <p v-if="item.label === 'Migration status' && item.emphasis" class="species-check-text mb-0">
+                  {{ item.text }}
+                  <strong :class="`species-migration-status species-migration-status--${item.tone}`">
+                    {{ item.emphasis.weight }}
+                  </strong>.
+                  <span v-if="item.note" class="species-migration-note">{{ item.note }}</span>
+                </p>
+                <p v-else class="species-check-text mb-0">{{ item.text }}</p>
               </div>
             </div>
 
@@ -789,6 +799,15 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                 <p class="species-final-assessment-text mb-0">{{ speciesFeedback.finalText }}</p>
               </div>
             </div>
+
+            <p class="species-data-source mt-4 mb-0">
+              Body mass, aerial classification, and migration status are sourced from
+              <a
+                href="https://onlinelibrary.wiley.com/doi/10.1111/ele.13898"
+                target="_blank"
+                rel="noopener noreferrer"
+              >AVONET</a>.
+            </p>
           </v-sheet>
         </section>
 
@@ -1136,5 +1155,15 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
   color: rgba(var(--v-theme-on-surface), 0.62);
   font-size: 0.78rem;
   line-height: 1.35;
+}
+
+.species-data-source {
+  color: rgba(var(--v-theme-on-surface), 0.56);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.species-data-source a {
+  color: inherit;
 }
 </style>

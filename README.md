@@ -113,6 +113,7 @@ function doPost(e) {
     "submitted_at_iso",
     "species_common_name",
     "species_body_mass_g",
+    "species_migration_status",
     "species_birds_of_the_world_url",
     "location_site_name",
     "location_country",

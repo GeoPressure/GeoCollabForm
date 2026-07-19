@@ -80,6 +80,26 @@ function taggedFeedback(species) {
   return "Not previously tagged.";
 }
 
+function migrationFeedback(migration) {
+  if (migration === '1') return {
+    text: 'This species is considered',
+    note: 'This classification might be incomplete, so provide evidence of expected movement for the target population.',
+    tone: 'warning',
+    emphasis: { weight: 'Resident', caption: '' },
+  };
+  if (migration === '2') return {
+    text: 'This species is considered a',
+    tone: 'success',
+    emphasis: { weight: 'partial migrant', caption: '' },
+  };
+  if (migration === '3') return {
+    text: 'This species is considered',
+    tone: 'success',
+    emphasis: { weight: 'Migratory', caption: '' },
+  };
+  return { text: 'No AVONET migration classification available.', tone: 'warning' };
+}
+
 export function buildSpeciesFeedback(species) {
   if (!species) {
     return null;
@@ -95,14 +115,15 @@ export function buildSpeciesFeedback(species) {
       : species.tagged_previously === "light-only"
         ? "warning"
         : "success";
+  const migration = migrationFeedback(species.migration);
 
   const items = [
     {
-      label: "Aerial species",
-      text: species.is_aerial
-        ? `${species.common_name} is classified as an aerial species and is therefore unlikely to be a suitable candidate for a multi-sensor geolocator.`
-        : `${species.common_name} is not flagged as an aerial feeding species. Pressure-based geolocation is adequate.`,
-      tone: aerialTone,
+      label: "Migration status",
+      text: migration.text,
+      tone: migration.tone,
+      emphasis: migration.emphasis,
+      note: migration.note,
     },
     {
       label: "Body mass",
@@ -115,6 +136,13 @@ export function buildSpeciesFeedback(species) {
         loggerPct: Number.isFinite(species.body_mass_g) ? `${loggerPct.toFixed(1)}%` : "NA",
         caption: `of body mass (${loggerMassG.toFixed(1)} g logger)`,
       },
+    },
+    {
+      label: "Aerial species",
+      text: species.is_aerial
+        ? `${species.common_name} is classified as an aerial species and is therefore unlikely to be a suitable candidate for a multi-sensor geolocator.`
+        : `${species.common_name} is not flagged as an aerial feeding species. Pressure-based geolocation is adequate.`,
+      tone: aerialTone,
     },
     {
       label: "Previously tagged",
@@ -133,7 +161,7 @@ export function buildSpeciesFeedback(species) {
     finalTone = "warning";
     finalText =
       "Not a strong candidate species. Aerial foraging limits the suitability for pressure-based geolocation.";
-  } else if (mass.tone === "warning" || taggedTone === "warning") {
+  } else if (mass.tone === "warning" || taggedTone === "warning" || migration.tone === "warning") {
     finalTone = "warning";
     finalText =
       "Possible candidate species, but it requires stronger justification for both novelty and feasibility.";

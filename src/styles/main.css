@@ -387,7 +387,7 @@ a:hover {
 
 .species-checks-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -424,11 +424,43 @@ a:hover {
   gap: 12px;
 }
 
+.species-check-metrics--migration .species-check-metric-main {
+  font-size: 1.2rem;
+}
+
+.species-migration-status {
+  font-weight: 800;
+}
+
+.species-migration-status--success {
+  color: rgb(var(--v-theme-success));
+}
+
+.species-migration-status--warning {
+  color: rgb(var(--v-theme-warning));
+}
+
+.species-migration-note {
+  display: block;
+  margin-top: 4px;
+  color: var(--gc-color-muted, #60716d);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 .species-check-metric-main {
   color: var(--gc-color-text, #1f2a28);
   font-size: 1.45rem;
   font-weight: 800;
   line-height: 1;
+}
+
+.species-check-metric-main--success {
+  color: rgb(var(--v-theme-success));
+}
+
+.species-check-metric-main--warning {
+  color: rgb(var(--v-theme-warning));
 }
 
 .species-check-metric-side {

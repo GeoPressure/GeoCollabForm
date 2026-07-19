@@ -12,7 +12,7 @@ Rules:
   - soi_number_loggers_approx_raw
 - Join AVONET on scientific name:
   AviList.Scientific_name == AVONET2_eBird.Species2
-  Retrieve body_mass_g from AVONET2_eBird.Mass
+ Retrieve body_mass_g and migration from AVONET2_eBird.Mass and Migration
   If no scientific-name match is found, fallback to:
   AviList.AvibaseID == AVONET2_eBird.Avibase.ID2
 
@@ -224,31 +224,37 @@ def load_soi_loggers(path: Path) -> Dict[str, dict]:
     return {sci: {"soi_number_loggers_approx_raw": raw} for sci, raw in per_species.items()}
 
 
-def load_avonet_mass(path: Path) -> tuple[Dict[str, float], Dict[str, float]]:
+def load_avonet_data(path: Path) -> tuple[Dict[str, float], Dict[str, float], Dict[str, str], Dict[str, str]]:
     with zipfile.ZipFile(path) as zf:
         rows = list(_iter_rows(zf, "AVONET2_eBird"))
 
     headers = rows[0]
     masses_by_sci: Dict[str, List[float]] = defaultdict(list)
     masses_by_avibase: Dict[str, List[float]] = defaultdict(list)
+    migration_by_sci: Dict[str, str] = {}
+    migration_by_avibase: Dict[str, str] = {}
 
     for row in rows[1:]:
         item = _to_map(headers, row)
         sci = (item.get("Species2") or "").strip()
         avibase_id = (item.get("Avibase.ID2") or "").strip().upper()
         mass = _to_float((item.get("Mass") or "").strip())
-        if mass is None:
-            continue
         if sci:
-            masses_by_sci[sci].append(mass)
+            if mass is not None:
+                masses_by_sci[sci].append(mass)
+            if item.get("Migration", "").strip():
+                migration_by_sci[sci] = item["Migration"].strip()
         if avibase_id:
-            masses_by_avibase[avibase_id].append(mass)
+            if mass is not None:
+                masses_by_avibase[avibase_id].append(mass)
+            if item.get("Migration", "").strip():
+                migration_by_avibase[avibase_id] = item["Migration"].strip()
 
     by_sci = {sci: round(mean(values), 3) for sci, values in masses_by_sci.items() if values}
     by_avibase = {
         avibase_id: round(mean(values), 3) for avibase_id, values in masses_by_avibase.items() if values
     }
-    return by_sci, by_avibase
+    return by_sci, by_avibase, migration_by_sci, migration_by_avibase
 
 
 def join_tables(
@@ -256,6 +262,8 @@ def join_tables(
     soi_map: Dict[str, dict],
     avonet_by_sci: Dict[str, float],
     avonet_by_avibase: Dict[str, float],
+    migration_by_sci: Dict[str, str],
+    migration_by_avibase: Dict[str, str],
 ) -> List[dict]:
     out: List[dict] = []
 
@@ -265,6 +273,7 @@ def join_tables(
         mass = avonet_by_sci.get(sci)
         if mass is None:
             mass = avonet_by_avibase.get(row["avibase_id"])
+        migration = migration_by_sci.get(sci) or migration_by_avibase.get(row["avibase_id"], "")
         is_aerial = row["order_name"] in AERIAL_ORDERS or row["family_name"] in AERIAL_FAMILIES
 
         soi_raw = soi.get("soi_number_loggers_approx_raw", "")
@@ -282,6 +291,7 @@ def join_tables(
                 "scientific_name": sci,
                 "soi_number_loggers_approx_raw": soi_raw,
                 "body_mass_g": mass,
+                "migration": migration,
                 "tagged_previously": tagged_previously,
             }
         )
@@ -303,6 +313,7 @@ def write_csv(rows: List[dict], path: Path) -> None:
         "scientific_name",
         "soi_number_loggers_approx_raw",
         "body_mass_g",
+        "migration",
         "tagged_previously",
     ]
 
@@ -383,8 +394,15 @@ def main() -> None:
 
     ref = load_avilist_reference(avilist_file)
     soi_map = load_soi_loggers(soi_file)
-    avonet_by_sci, avonet_by_avibase = load_avonet_mass(avonet_file)
-    joined = join_tables(ref, soi_map, avonet_by_sci, avonet_by_avibase)
+    avonet_by_sci, avonet_by_avibase, migration_by_sci, migration_by_avibase = load_avonet_data(avonet_file)
+    joined = join_tables(
+        ref,
+        soi_map,
+        avonet_by_sci,
+        avonet_by_avibase,
+        migration_by_sci,
+        migration_by_avibase,
+    )
 
     write_csv(joined, args.output)
     if args.frontend_output != args.output:
@@ -392,6 +410,7 @@ def main() -> None:
 
     soi_hits = sum(1 for row in joined if row["soi_number_loggers_approx_raw"])
     avonet_hits = sum(1 for row in joined if row["body_mass_g"] is not None)
+    migration_hits = sum(1 for row in joined if row["migration"])
     avonet_fallback_hits = sum(
         1
         for row in ref
@@ -408,6 +427,7 @@ def main() -> None:
     print(f"Wrote missing-mass template to {args.missing_mass_output}")
     print(f"SOI matches: {soi_hits}")
     print(f"AVONET matches: {avonet_hits}")
+    print(f"AVONET migration matches: {migration_hits}")
     print(f"AVONET fallback matches by AvibaseID: {avonet_fallback_hits}")
     print(f"Species without mass: {len(missing_mass_rows)}")
     for row in missing_mass_rows:

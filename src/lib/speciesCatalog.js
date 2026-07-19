@@ -85,6 +85,7 @@ export function parseSpeciesRecordsFromJoinedCsv(csvRaw) {
       is_aerial: parseBoolean(cell(row, 'is_aerial')),
       soi_number_loggers_approx_raw: cell(row, 'soi_number_loggers_approx_raw'),
       body_mass_g: bodyMass,
+      migration: cell(row, 'migration'),
       tagged_previously: taggedPreviously
     })
   }
