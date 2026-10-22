@@ -99,6 +99,24 @@ python3 scripts/join_reference_tables.py
 
 The script expects the raw Excel inputs to exist locally under `data/`.
 
+## Logger planner (beta)
+
+The same app has a logger planner at `#/planner` (`#/history` opens it at the list of past deployments). It helps choose the geolocator, battery and recording intervals for a species, and checks them against:
+
+- the tag weight of past SOI tags with the same battery and harness, as % of body mass
+- the battery model and the per-sensor memory model from `SimulationGDL3pam v2.4_StromSpeicher.xlsx` (`src/lib/loggerModel.js`)
+- how long past tags with the same settings recorded
+
+It also writes the agreement text (intervals in minutes) and the production settings (base interval and factors).
+
+The past deployments come from `src/data/planner_history.json`. This public file holds only summaries by order, plus anonymous tag and sensor records. It has no client names, ring numbers, tag IDs, coordinates or remarks, and it leaves out test orders. To rebuild it (macOS/Linux with mdbtools):
+
+```bash
+Rscript scripts/build_planner_data.R "/Volumes/20 Geolocator/40 Database/GDL_Data.accdb" <sensor_stops.csv>
+```
+
+`sensor_stops.csv` is made from the raw logger files by the scripts in the GeoCollab folder `90_internal_document/sensor_stops/`.
+
 ## Google Sheets submission backend
 
 Form submissions are sent from the frontend to a Google Apps Script web app. A minimal script looks like this:
