@@ -7,7 +7,7 @@ export const SENSORS = [
   { key: "light", label: "Light", bytes: 2, energyAh: 3e-9, durationH: 1.2 / 3600 },
   { key: "pressure", label: "Pressure", bytes: 2, energyAh: 4e-9, durationH: 0.6 / 3600 },
   { key: "acc", label: "Activity", bytes: 2, energyAh: 53e-9, durationH: 2.3 / 3600 },
-  { key: "mag", label: "Magnetic+acceleration (3-axis)", bytes: 13, energyAh: 54e-9, durationH: 1.3 / 3600 },
+  { key: "mag", label: "Magnetic+acceleration (3-axis)", short: "Magnetic+acc.", bytes: 13, energyAh: 54e-9, durationH: 1.3 / 3600 },
   { key: "airT", label: "Temperature", bytes: 1, energyAh: 1e-9, durationH: 0.153 / 3600 },
   { key: "bodyT", label: "Body temperature", bytes: 1, energyAh: 1e-9, durationH: 0.153 / 3600 },
 ];
@@ -125,14 +125,16 @@ export function formatInterval(value) {
   return `${minutes} min`;
 }
 
-// Durations as "1y 23d" (a year is 365 days)
+// Durations as "1y 4m 3d" (a year is 365 days, a month a twelfth of it)
 export function formatDays(days) {
   if (!Number.isFinite(days)) return "–";
-  const d = Math.round(days);
-  if (d < 365) return `${d}d`;
-  const y = Math.floor(d / 365);
-  const r = d % 365;
-  return r ? `${y}y ${r}d` : `${y}y`;
+  const month = 365 / 12;
+  const total = Math.round(days);
+  const y = Math.floor(total / 365);
+  const m = Math.floor((total - y * 365) / month);
+  const d = Math.round(total - y * 365 - m * month);
+  const parts = [y ? `${y}y` : "", m ? `${m}m` : "", d || (!y && !m) ? `${d}d` : ""];
+  return parts.filter(Boolean).join(" ");
 }
 
 export function formatDayRange(lo, hi) {
@@ -146,7 +148,8 @@ export function agreementText(typeKey, intervals, batteryKey) {
   for (const key of type.sensors) {
     const v = intervals[key];
     if (!(v > 0)) continue;
-    const every = formatInterval(v).replace(" min", " minutes").replace(" h", " hours").replace(" d", " days");
+    const [n, unit] = formatInterval(v).split(" ");
+    const every = n === "1" ? { min: "minute", h: "hour", d: "day" }[unit] : `${n} ${{ min: "minutes", h: "hours", d: "days" }[unit]}`;
     parts.push(`${SENSOR_BY_KEY[key].label.toLowerCase()} every ${every}`);
   }
   if (parts.length === 0) return "";

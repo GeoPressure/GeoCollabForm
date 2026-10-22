@@ -2,33 +2,46 @@
 // Horizontal bars on a "days after logging start" axis, with dashed markers (e.g. 1 year).
 // row: { label, value, hi? (range value–hi, bar to its middle), q?: [q25, median, q75], tone: 'model' | 'past', detail }
 // Pass the same maxDay to several charts so their axes line up.
-import { computed } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { formatDays } from "../../lib/loggerModel";
 
 const props = defineProps({
   rows: { type: Array, required: true },
   markers: { type: Array, default: () => [] },
   maxDay: { type: Number, default: 730 },
+  width: { type: Number, default: 560 },
 });
 
 const labelWidth = 120;
-const width = 560;
+// Drawn at the container's pixel width so the text keeps its size on any screen
+const el = ref(null);
+const measured = ref(null);
+let observer = null;
+onMounted(() => {
+  observer = new ResizeObserver(([entry]) => {
+    measured.value = Math.round(entry.contentRect.width) || null;
+  });
+  observer.observe(el.value);
+});
+onBeforeUnmount(() => observer?.disconnect());
+const width = computed(() => Math.max(320, measured.value || props.width));
 const rowHeight = 28;
 const top = 28;
 
 const maxDay = computed(() => props.maxDay);
 
 // Room on the right for the value labels
-const plotWidth = width - labelWidth - 120;
-const x = (d) => labelWidth + (Math.min(Math.max(d, 0), maxDay.value) / maxDay.value) * plotWidth;
+// Values are in the hover text, so the plot runs to the right edge
+const plotWidth = computed(() => width.value - labelWidth - 16);
+const x = (d) => labelWidth + (Math.min(Math.max(d, 0), maxDay.value) / maxDay.value) * plotWidth.value;
 const height = computed(() => top + props.rows.length * rowHeight + 38);
 const tone = (row) => toneColor[row.tone] || toneColor.model;
 const hasRange = (row) => Number.isFinite(row.hi) && Math.round(row.hi) !== Math.round(row.value);
 const mid = (row) => (hasRange(row) ? (row.value + row.hi) / 2 : row.value);
 
 const ticks = computed(() => {
-  // Every 3 or 6 months, labelled "6m", "1y", "1y 6m"
-  const months = maxDay.value > 900 ? 6 : 3;
+  // Every 3, 6, 12 or 24 months (at most about 10 ticks), labelled "6m", "1y", "1y 6m"
+  const months = [3, 6, 12, 24, 60].find((m) => maxDay.value / ((m * 365) / 12) <= 10) ?? 120;
   const out = [];
   for (let m = 0; (m * 365) / 12 <= maxDay.value + 1; m += months) {
     const y = Math.floor(m / 12);
@@ -36,6 +49,21 @@ const ticks = computed(() => {
     out.push({ day: (m * 365) / 12, label: m === 0 ? "0" : [y ? `${y}y` : "", r ? `${r}m` : ""].filter(Boolean).join(" ") });
   }
   return out;
+});
+
+// Hovered row, shown with a tooltip
+const hover = ref(null);
+const tip = computed(() => {
+  const i = hover.value;
+  if (i === null) return null;
+  const row = props.rows[i];
+  const end = row.q ? row.q[2] : Number.isFinite(row.hi) ? row.hi : row.value;
+  return {
+    left: `${(x(Number.isFinite(end) ? end : 0) / width.value) * 100}%`,
+    top: `${((top + i * rowHeight) / height.value) * 100}%`,
+    title: `${row.label}: ${valueLabel(row) || "no estimate"}`,
+    detail: row.detail,
+  };
 });
 
 const toneColor = {
@@ -53,7 +81,8 @@ function valueLabel(row) {
 </script>
 
 <template>
-  <svg :viewBox="`0 0 ${width} ${height}`" class="timeline-chart" role="img" aria-label="Expected recording time per limit">
+  <div class="chart-wrap">
+  <svg ref="el" :viewBox="`0 0 ${width} ${height}`" class="timeline-chart" role="img" aria-label="Expected recording time per limit">
     <g class="timeline-grid">
       <g v-for="t in ticks" :key="t.day">
         <line :x1="x(t.day)" :x2="x(t.day)" :y1="top - 6" :y2="height - 36" />
@@ -67,9 +96,15 @@ function valueLabel(row) {
       <text :x="x(m.day)" :y="14 + (i % 2) * 13" :text-anchor="m.day === 0 ? 'start' : 'middle'">{{ m.label }}</text>
     </g>
 
-    <g v-for="(row, i) in rows" :key="row.label" :transform="`translate(0, ${top + i * rowHeight})`">
-      <title>{{ row.label }}: {{ row.detail || valueLabel(row) }}</title>
-      <rect :x="0" :y="0" :width="width" :height="rowHeight" fill="transparent" />
+    <g
+      v-for="(row, i) in rows"
+      :key="row.label"
+      :transform="`translate(0, ${top + i * rowHeight})`"
+      :class="{ 'timeline-hover': hover === i }"
+      @mouseenter="hover = i"
+      @mouseleave="hover = null"
+    >
+      <rect :x="0" :y="0" :width="width" :height="rowHeight" rx="4" class="timeline-hit" />
       <text :x="labelWidth - 10" :y="rowHeight / 2 + 4" text-anchor="end" class="timeline-label">{{ row.label }}</text>
 
       <template v-if="row.q">
@@ -105,19 +140,26 @@ function valueLabel(row) {
           class="timeline-range"
         />
       </template>
+      <!-- Bars cut at the axis end show their real value inside the bar -->
       <text
-        v-if="valueLabel(row)"
-        :x="Math.min(x(row.hi && row.hi > (row.value || 0) ? row.hi : row.q ? row.q[2] : row.value) + 6, width - 114)"
+        v-if="!row.q && Number.isFinite(row.value) && mid(row) > maxDay"
+        :x="labelWidth + plotWidth - 8"
         :y="rowHeight / 2 + 4"
-        class="timeline-value"
+        text-anchor="end"
+        class="timeline-value-inside"
       >
-        {{ valueLabel(row) }}
+        {{ valueLabel(row) }} ›
       </text>
-      <text v-else :x="labelWidth + 4" :y="rowHeight / 2 + 4" class="timeline-value timeline-value--muted">
+      <text v-if="!valueLabel(row)" :x="labelWidth + 4" :y="rowHeight / 2 + 4" class="timeline-value timeline-value--muted">
         {{ row.detail || "no estimate" }}
       </text>
     </g>
   </svg>
+  <div v-if="tip" class="chart-tip" :style="{ left: tip.left, top: tip.top }">
+    <strong>{{ tip.title }}</strong>
+    <div v-if="tip.detail">{{ tip.detail }}</div>
+  </div>
+  </div>
 </template>
 
 <style scoped>
@@ -126,6 +168,26 @@ function valueLabel(row) {
   height: auto;
   font-size: 12px;
   font-family: inherit;
+}
+.timeline-value-inside {
+  fill: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.timeline-hit {
+  fill: transparent;
+}
+.timeline-hover .timeline-value-inside {
+  fill: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.timeline-hit {
+  fill: var(--gc-color-text, #1f2a28);
+  fill-opacity: 0.05;
+}
+.timeline-hover rect:not(.timeline-hit):not(.timeline-range) {
+  filter: brightness(1.15);
 }
 .timeline-grid line {
   stroke: var(--gc-color-border, #d7dfda);

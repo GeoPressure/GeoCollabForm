@@ -100,12 +100,14 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
       />
       <v-switch v-model="onlyWithData" label="Read back only" color="primary" density="compact" hide-details />
     </div>
-    <div class="planner-hint mt-3">
-      {{ totals.orders }} orders · {{ totals.species }} species · {{ totals.tags }} tags produced · {{ totals.data }} read back
-    </div>
-    <InfoNote label="About this list" class="mb-2">
+    <div class="planner-head mt-3">
+      <span class="planner-hint">
+        {{ totals.orders }} orders · {{ totals.species }} species · {{ totals.tags }} tags produced · {{ totals.data }} read back
+      </span>
+      <InfoNote label="About this list">
       Test orders are left out. The battery class comes from the cell named in the order remarks, or else is inferred from the order weight; "–" means it could not be inferred.
-    </InfoNote>
+      </InfoNote>
+    </div>
 
     <v-data-table
       v-model:expanded="expanded"

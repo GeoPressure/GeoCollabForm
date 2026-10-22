@@ -1,7 +1,7 @@
 <script setup>
 // Histogram of past tag weights: the chosen battery in colour over all tags of this type
 // in grey, with the 3% and 5% body-mass limits in grams
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { quantile } from "../../lib/plannerHistory";
 
 const props = defineProps({
@@ -79,12 +79,49 @@ const yTicks = computed(() => {
   return out;
 });
 
+// Background bands: below 3% of body mass, 3-5%, above 5%
+const bands = computed(() => {
+  if (!(props.bodyMass > 0)) return [];
+  const [lo, hi] = domain.value;
+  const g3 = props.bodyMass * 0.03;
+  const g5 = props.bodyMass * 0.05;
+  const clamp = (g) => Math.min(Math.max(g, lo), hi);
+  return [
+    { key: "ok", from: lo, to: clamp(g3) },
+    { key: "warn", from: clamp(g3), to: clamp(g5) },
+    { key: "over", from: clamp(g5), to: hi },
+  ].filter((b) => b.to > b.from);
+});
+
 const median = computed(() => props.median ?? quantile(props.selected, 0.5));
+// Hovered bin, shown with a tooltip
+const hover = ref(null);
+const tip = computed(() => {
+  const b = hover.value;
+  if (!b) return null;
+  return {
+    left: `${((b.x + b.w / 2) / width) * 100}%`,
+    top: `${(y(Math.max(b.all, b.sel)) / height) * 100}%`,
+    title: `${b.g0.toFixed(2)}–${(b.g0 + binWidth).toFixed(2)} g`,
+    lines: [`${b.sel} with a ${props.selectedLabel} battery`, `${b.all} tags in all`],
+  };
+});
+
 const inView = (g) => g >= domain.value[0] && g <= domain.value[1];
 </script>
 
 <template>
+  <div class="chart-wrap">
   <svg :viewBox="`0 0 ${width} ${height}`" class="weight-hist" role="img" aria-label="Histogram of past tag weights">
+    <rect
+      v-for="b in bands"
+      :key="b.key"
+      :x="x(b.from)"
+      :y="m.top"
+      :width="x(b.to) - x(b.from)"
+      :height="plotH"
+      :class="`wh-band wh-band--${b.key}`"
+    />
     <g class="wh-grid">
       <g v-for="c in yTicks" :key="`y${c}`">
         <line :x1="m.left" :x2="width - m.right" :y1="y(c)" :y2="y(c)" />
@@ -97,9 +134,8 @@ const inView = (g) => g >= domain.value[0] && g <= domain.value[1];
       <text :x="m.left - 30" :y="m.top - 12">tags</text>
     </g>
 
-    <g v-for="b in bars" :key="b.i">
-      <title>{{ b.g0.toFixed(2) }}–{{ (b.g0 + binWidth).toFixed(2) }} g: {{ b.sel }} {{ selectedLabel }} · {{ b.all }} all</title>
-      <rect :x="b.x" :y="m.top" :width="b.w" :height="plotH" fill="transparent" />
+    <g v-for="b in bars" :key="b.i" :class="{ 'wh-hover': hover === b }" @mouseenter="hover = b" @mouseleave="hover = null">
+      <rect :x="b.x" :y="m.top" :width="b.w" :height="plotH" class="wh-hit" />
       <rect v-if="b.all" :x="b.x" :y="y(b.all)" :width="b.w" :height="y(0) - y(b.all)" rx="2" class="wh-bar-all" />
       <rect v-if="b.sel" :x="b.x" :y="y(b.sel)" :width="b.w" :height="y(0) - y(b.sel)" rx="2" class="wh-bar-sel" />
     </g>
@@ -124,6 +160,11 @@ const inView = (g) => g >= domain.value[0] && g <= domain.value[1];
       </template>
     </g>
   </svg>
+  <div v-if="tip" class="chart-tip" :style="{ left: tip.left, top: tip.top }">
+    <strong>{{ tip.title }}</strong>
+    <div v-for="l in tip.lines" :key="l">{{ l }}</div>
+  </div>
+  </div>
 </template>
 
 <style scoped>
@@ -132,6 +173,32 @@ const inView = (g) => g >= domain.value[0] && g <= domain.value[1];
   height: auto;
   font-family: inherit;
   font-size: 11px;
+}
+.wh-hit {
+  fill: transparent;
+}
+.wh-hover .wh-hit {
+  fill: var(--gc-color-text, #1f2a28);
+  fill-opacity: 0.06;
+}
+.wh-hover .wh-bar-sel {
+  fill: rgb(var(--v-theme-primary));
+}
+.wh-hover .wh-bar-all {
+  fill: var(--gc-color-muted, #60716d);
+  fill-opacity: 0.5;
+}
+.wh-band--ok {
+  fill: rgb(var(--v-theme-success));
+  fill-opacity: 0.08;
+}
+.wh-band--warn {
+  fill: rgb(var(--v-theme-warning));
+  fill-opacity: 0.1;
+}
+.wh-band--over {
+  fill: rgb(var(--v-theme-error));
+  fill-opacity: 0.1;
 }
 .wh-grid line {
   stroke: var(--gc-color-border, #d7dfda);

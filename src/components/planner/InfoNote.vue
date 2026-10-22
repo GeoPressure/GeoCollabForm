@@ -23,8 +23,9 @@ const open = ref(false);
 </template>
 
 <style scoped>
+/* The toggle sits in its parent's row (e.g. next to a title); the text opens below on its own line */
 .info-note {
-  margin-top: 6px;
+  display: contents;
 }
 .info-note-toggle {
   display: inline-flex;
@@ -42,7 +43,9 @@ const open = ref(false);
   color: var(--gc-color-text, #1f2a28);
 }
 .info-note-body {
-  padding: 4px 0 0 20px;
+  flex-basis: 100%;
+  order: 10;
+  padding: 0 0 6px;
   font-size: 0.82rem;
   line-height: 1.45;
   color: var(--gc-color-muted, #60716d);

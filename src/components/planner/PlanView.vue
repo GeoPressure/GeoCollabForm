@@ -198,14 +198,23 @@ const batteryRows = computed(() =>
     : []
 );
 
-const memoryRows = computed(() =>
-  sensorHistory.value.map((s) => ({
-    label: SENSOR_BY_KEY[s.key].label,
-    value: s.model,
-    tone: "model",
-    detail: s.model === null ? "no memory model, see past tags" : `full after ${formatDays(s.model)}`,
-  }))
-);
+// Memory is shared in proportion to each sensor's data rate, so all sensors fill up
+// together (within a day or so, from rounding to whole pages): one row, first to fill
+const memoryRows = computed(() => {
+  const days = sensorHistory.value.map((s) => s.model).filter(Number.isFinite);
+  if (!days.length) return [];
+  return [
+    {
+      label: "All sensors",
+      value: Math.min(...days),
+      tone: "model",
+      detail: sensorHistory.value
+        .filter((s) => Number.isFinite(s.model))
+        .map((s) => `${SENSOR_BY_KEY[s.key].short || SENSOR_BY_KEY[s.key].label} ${formatDays(s.model)}`)
+        .join(", "),
+    },
+  ];
+});
 
 const pastRows = computed(() => {
   const early = lifetime.value.stoppedEarly;
@@ -240,19 +249,20 @@ const pastRows = computed(() => {
 });
 
 // Axis long enough for the values, at least 1.25 years, at most about 3 years
-const maxDay = computed(() => {
-  const values = [
-    battery.value?.high,
-    ...memoryRows.value.map((r) => r.value),
-    ...pastRows.value.map((r) => r.q[2]),
-  ].filter(Number.isFinite);
-  const end = Math.max(456, ...values.map((v) => v * 1.08));
-  return Math.min(Math.ceil(end / 90) * 90, 1170);
-});
-const markers = computed(() => [
+// Axis long enough for the values (at least 1.25 years). Battery and past tags share
+// one axis so they can be compared; memory, often much longer, has its own.
+function axisEnd(values) {
+  const end = Math.max(456, ...values.filter(Number.isFinite).map((v) => v * 1.08));
+  return Math.ceil(end / 91.25) * 91.25;
+}
+const maxDay = computed(() => axisEnd([battery.value?.high, ...pastRows.value.map((r) => r.q[2])]));
+const memoryMaxDay = computed(() => axisEnd(memoryRows.value.map((r) => r.value)));
+const markersFor = (end) => [
   { day: 365, label: "1 year" },
-  ...(maxDay.value > 760 ? [{ day: 730, label: "2 years" }] : []),
-]);
+  ...(end > 760 ? [{ day: 730, label: "2 years" }] : []),
+];
+const markers = computed(() => markersFor(maxDay.value));
+const memoryMarkers = computed(() => markersFor(memoryMaxDay.value));
 
 const memoryKB = computed(() => {
   const bytes = type.value.memoryBytes[hw.value];
@@ -326,6 +336,15 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
           bg-color="surface"
           hide-details
         />
+        <a
+          v-if="species"
+          class="planner-bow-link"
+          :href="species.birds_of_the_world_url"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <v-icon icon="mdi-open-in-new" size="13" />{{ species.common_name }} on Birds of the World
+        </a>
         <div class="planner-or" aria-hidden="true">or</div>
         <v-text-field
           v-model.number="plan.bodyMass"
@@ -437,65 +456,60 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
   </div>
 
   <!-- Results -->
-  <div class="planner-results-grid mt-4">
-    <div class="planner-col">
-      <v-sheet border rounded="lg" class="pa-4">
-        <div v-if="species" class="species-profile-header mb-3">
-          <h3 class="species-profile-title mb-0">
-            <span class="species-profile-name">{{ species.common_name }}</span>
-            <span class="species-profile-latin">(<em>{{ species.scientific_name }}</em>)</span>
-          </h3>
-          <a class="species-profile-link" :href="species.birds_of_the_world_url" target="_blank" rel="noopener noreferrer">
-            <v-icon icon="mdi-open-in-new" size="16" />
-            <span>BOW species page</span>
-          </a>
+  <div class="planner-results-grid mt-3">
+      <v-sheet border rounded="lg" class="pa-3">
+        <div class="planner-head">
+          <h2 class="planner-section-title">Is the logger light enough?</h2>
+          <InfoNote label="About this figure">
+            Weight of {{ weight.n }} past {{ plan.type }} tags with a {{ BATTERIES[plan.battery].label.toLowerCase() }} battery and
+            the {{ weight.basis }} (blue), among all {{ weight.context.length }} tags with the {{ weight.basis }}, whatever their
+            battery (grey). The logger weight above is their median. When fewer than 20 tags match, the hardware, then the
+            stalk length, then the light stalk, then the harness is dropped from the match.
+            <br />
+            The battery is not recorded per tag. It comes from the cell named in the order remarks (CR1225 large, CR1220
+            medium, two 1.5 V cells double small), or else from the order's median weight: a Gaussian mixture fitted to all
+            v2.x orders with a harness and light stalk finds groups around
+            {{ batteryMixture.mean.map((m) => `${m.toFixed(2)} g`).join(", ") }}, and an order gets a class only when it is at
+            least {{ Math.round(batteryMixture.min_posterior * 100) }}% likely. Orders in between (tubes, glue and harness add a
+            variable weight), older hardware and tags without harness or light stalk stay unknown and are only in grey.
+          </InfoNote>
         </div>
-        <h2 v-else class="planner-section-title">Weight</h2>
 
-        <div :class="`species-check-tile species-check-tile--${weightTone}`">
-          <div class="species-check-label">Logger weight</div>
-          <div class="species-check-metrics">
-            <span class="species-check-metric-main planner-logger-weight">{{ weight.n ? `${fmt(weight.median, 2)} g` : "–" }}</span>
-            <span class="species-check-metric-side">
-              <span class="species-check-metric-pct">{{ weightPct !== null ? `${weightPct.toFixed(1)}%` : "" }}</span>
-              <span class="species-check-metric-caption">
-                <template v-if="!weight.n">no past tags with this battery</template>
-                <template v-else-if="plan.bodyMass > 0">of a {{ fmt(plan.bodyMass, plan.bodyMass > 100 ? 0 : 1) }} g bird</template>
-                <template v-else>choose a species or enter a bird weight</template>
-              </span>
-            </span>
-          </div>
+        <div :class="`planner-weight-line planner-weight-line--${weightTone}`">
+          <span class="planner-weight-label">Logger weight</span>
+          <span class="planner-logger-weight">{{ weight.n ? `${fmt(weight.median, 2)} g` : "–" }}</span>
+          <span v-if="weightPct !== null" class="planner-weight-pct">{{ weightPct.toFixed(1) }}%</span>
+          <span class="planner-hint">
+            <template v-if="!weight.n">no past tags with this battery</template>
+            <template v-else-if="plan.bodyMass > 0">of a {{ fmt(plan.bodyMass, plan.bodyMass > 100 ? 0 : 1) }} g bird</template>
+            <template v-else>choose a species or enter a bird weight</template>
+          </span>
         </div>
 
         <WeightHistogram
           v-if="weight.context?.length"
-          class="mt-3"
+          class="mt-1"
           :all="weight.context"
           :selected="weight.values"
           :body-mass="plan.bodyMass"
           :median="weight.n ? weight.median : null"
           :selected-label="BATTERIES[plan.battery].label.toLowerCase()"
         />
-        <InfoNote label="About this figure">
-          Weight of {{ weight.n }} past {{ plan.type }} tags with a {{ BATTERIES[plan.battery].label.toLowerCase() }} battery and
-          the {{ weight.basis }} (blue), among all {{ weight.context.length }} tags with the {{ weight.basis }}, whatever their
-          battery (grey). The logger weight above is their median. When fewer than 20 tags match, the hardware, then the
-          stalk length, then the light stalk, then the harness is dropped from the match.
-          <br />
-          The battery is not recorded per tag. It comes from the cell named in the order remarks (CR1225 large, CR1220
-          medium, two 1.5 V cells double small), or else from the order's median weight: a Gaussian mixture fitted to all
-          v2.x orders with a harness and light stalk finds groups around
-          {{ batteryMixture.mean.map((m) => `${m.toFixed(2)} g`).join(", ") }}, and an order gets a class only when it is at
-          least {{ Math.round(batteryMixture.min_posterior * 100) }}% likely. Orders in between (tubes, glue and harness add a
-          variable weight), older hardware and tags without harness or light stalk stay unknown and are only in grey.
-        </InfoNote>
       </v-sheet>
 
-      <v-sheet border rounded="lg" class="pa-4">
-        <h2 class="planner-section-title">Intervals used in past orders</h2>
+      <v-sheet border rounded="lg" class="pa-3">
+        <div class="planner-head">
+          <h2 class="planner-section-title">Intervals used in past orders</h2>
+          <InfoNote label="About this figure">
+            Share of the {{ usageOrders }} past {{ plan.type }} orders with a {{ BATTERIES[plan.battery].label.toLowerCase() }}
+            battery recording each sensor at each interval, whatever the
+            species or outcome, from off (grey) to the longest interval; narrow segments are rare settings (hover for the number of orders). Your current setting is
+            outlined. Settings come from the logger files when they were read back, else from the production database.
+          </InfoNote>
+        </div>
         <p v-if="!usageOrders" class="planner-hint mb-0">No past orders with this battery.</p>
         <div v-for="key in type.sensors" :key="key" class="planner-usage-row">
-          <div class="planner-usage-label">{{ SENSOR_BY_KEY[key].label }}</div>
+          <div class="planner-usage-label">{{ SENSOR_BY_KEY[key].short || SENSOR_BY_KEY[key].label }}</div>
           <div class="planner-usage-bars">
             <span
               v-for="u in [...usage[key]].sort((a, b) => a.interval - b.interval)"
@@ -508,64 +522,69 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
             </span>
           </div>
         </div>
-        <InfoNote label="About this figure">
-          Share of the {{ usageOrders }} past {{ plan.type }} orders with a {{ BATTERIES[plan.battery].label.toLowerCase() }}
-          battery recording each sensor at each interval, whatever the
-          species or outcome, from off (grey) to the longest interval; narrow segments are rare settings (hover for the number of orders). Your current setting is
-          outlined. Settings come from the logger files when they were read back, else from the production database.
-        </InfoNote>
       </v-sheet>
-    </div>
 
-    <v-sheet border rounded="lg" class="pa-4">
+    <v-sheet border rounded="lg" class="pa-3 planner-span-all">
       <h2 class="planner-section-title">How long will it record?</h2>
 
       <div class="planner-limit">
-        <h3 class="planner-limit-title"><v-icon icon="mdi-battery-60" size="18" class="mr-1" />Battery (model)</h3>
+        <div class="planner-head">
+          <h3 class="planner-limit-title"><v-icon icon="mdi-battery-60" size="18" class="mr-1" />Battery (model)</h3>
+          <InfoNote>
+            <template v-if="battery">
+              The {{ BATTERIES[plan.battery].cell }} holds {{ BATTERIES[plan.battery].mAh }} mAh. Each measurement uses a fixed
+              charge (light 3, pressure 4, activity 53, magnetic+acceleration 54, temperature 1 nAh), and the tag draws 1.8–2 µA while it
+              sleeps between measurements, which gives the range (± in the label, thin dark line on the bar); the bar goes to its middle. The {{ plan.standbyDays }} days of standby before
+              logging are subtracted. With these intervals, sleeping uses {{ Math.round(battery.sleepShare * 100) }}% of the energy.
+            </template>
+            <template v-else>No battery model for this tag yet; see past tags.</template>
+          </InfoNote>
+        </div>
         <TimelineChart v-if="batteryRows.length" :rows="batteryRows" :markers="markers" :max-day="maxDay" />
-        <InfoNote>
-          <template v-if="battery">
-            The {{ BATTERIES[plan.battery].cell }} holds {{ BATTERIES[plan.battery].mAh }} mAh. Each measurement uses a fixed
-            charge (light 3, pressure 4, activity 53, magnetic+acceleration 54, temperature 1 nAh), and the tag draws 1.8–2 µA while it
-            sleeps between measurements, which gives the range (± in the label, thin dark line on the bar); the bar goes to its middle. The {{ plan.standbyDays }} days of standby before
-            logging are subtracted. With these intervals, sleeping uses {{ Math.round(battery.sleepShare * 100) }}% of the energy.
-          </template>
-          <template v-else>No battery model for this tag yet; see past tags.</template>
-        </InfoNote>
       </div>
 
       <div class="planner-limit">
-        <h3 class="planner-limit-title"><v-icon icon="mdi-history" size="18" class="mr-1" />Past tags</h3>
+        <div class="planner-head">
+          <h3 class="planner-limit-title"><v-icon icon="mdi-history" size="18" class="mr-1" />Past tags</h3>
+          <InfoNote>
+            From the raw data of {{ lifetime.n }} read-back {{ plan.type }}{{ hw ? ` ${hw}` : "" }} tags<template
+              v-if="plan.battery !== 'LP'"> with a {{ BATTERIES[plan.battery].label.toLowerCase() }} battery</template>, whatever
+            their intervals. <strong>Still on</strong>: at least one sensor was still recording when the tag was read
+            back, so the battery lasts at least this long. <strong>Stopped early</strong>: the last sensor stopped before read-back
+            (battery, full memory or failure). Box: middle half of tags; line: median.
+            <template v-if="lifetime.short">
+              {{ lifetime.short }} records shorter than {{ lifetime.minDays }} days (tests or failures at the start) are left out.
+            </template>
+          </InfoNote>
+        </div>
         <TimelineChart v-if="pastRows.length" :rows="pastRows" :markers="markers" :max-day="maxDay" />
-        <InfoNote>
-          From the raw data of {{ lifetime.n }} read-back {{ plan.type }}{{ hw ? ` ${hw}` : "" }} tags<template
-            v-if="plan.battery !== 'LP'"> with a {{ BATTERIES[plan.battery].label.toLowerCase() }} battery</template>, whatever
-          their intervals. <strong>Still on</strong>: at least one sensor was still recording when the tag was read
-          back, so the battery lasts at least this long. <strong>Stopped early</strong>: the last sensor stopped before read-back
-          (battery, full memory or failure). Box: middle half of tags; line: median.
-          <template v-if="lifetime.short">
-            {{ lifetime.short }} records shorter than {{ lifetime.minDays }} days (tests or failures at the start) are left out.
-          </template>
-        </InfoNote>
       </div>
       <div class="planner-limit">
-        <h3 class="planner-limit-title"><v-icon icon="mdi-memory" size="18" class="mr-1" />Memory (model)</h3>
-        <TimelineChart v-if="memoryRows.some((r) => Number.isFinite(r.value))" :rows="memoryRows" :markers="markers" :max-day="maxDay" />
-        <InfoNote>
-          <template v-if="memoryKB">
-            The {{ memoryKB }} memory ({{ plan.type }} {{ hw }}) is split in 256-byte pages, shared between sensors in proportion to
-            the data each writes (light, pressure and activity 2 bytes per measurement, magnetic+acceleration 13, temperature 1). Each
-            sensor stops when its share is full, so all sensors fill up at about the same time.
-          </template>
-          <template v-else>No memory model for this tag yet; see past tags.</template>
-        </InfoNote>
+        <div class="planner-head">
+          <h3 class="planner-limit-title"><v-icon icon="mdi-memory" size="18" class="mr-1" />Memory (model)</h3>
+          <InfoNote>
+            <template v-if="memoryKB">
+              The {{ memoryKB }} memory ({{ plan.type }} {{ hw }}) is split in 256-byte pages, shared between sensors in proportion to
+              the data each writes (light, pressure and activity 2 bytes per measurement, magnetic+acceleration 13, temperature 1). Each
+              sensor stops when its share is full, so all sensors fill up at about the same time and are shown as one bar (hover for each sensor).
+            </template>
+            <template v-else>No memory model for this tag yet; see past tags.</template>
+          </InfoNote>
+        </div>
+        <TimelineChart v-if="memoryRows.length" :rows="memoryRows" :markers="memoryMarkers" :max-day="memoryMaxDay" />
       </div>
 
     </v-sheet>
   </div>
 
   <v-sheet v-if="species" border rounded="lg" class="pa-4 mt-3">
-    <h2 class="planner-section-title">Past SOI deployments of {{ species.common_name }} and its genus</h2>
+    <div class="planner-head">
+      <h2 class="planner-section-title">Past SOI deployments of {{ species.common_name }} and its genus</h2>
+      <InfoNote v-if="relatedRows.length" label="Legend">
+        L = light, P = pressure, A = activity, M = magnetic+acceleration (3-axis), T = temperature, B = body temperature. Days recorded: median
+        over read-back tags. The arrow copies an order's settings into your plan.
+      </InfoNote>
+    </div>
     <p v-if="relatedRows.length === 0" class="planner-hint mb-0">None yet.</p>
     <v-table v-else density="compact">
       <thead>
@@ -603,10 +622,6 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
         </tr>
       </tbody>
     </v-table>
-    <InfoNote v-if="relatedRows.length" label="Legend">
-      L = light, P = pressure, A = activity, M = magnetic+acceleration (3-axis), T = temperature, B = body temperature. Days recorded: median
-      over read-back tags. The arrow copies an order's settings into your plan.
-    </InfoNote>
   </v-sheet>
 
   <v-sheet border rounded="lg" class="pa-3 mt-3 planner-agreement-box">
