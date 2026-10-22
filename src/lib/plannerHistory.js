@@ -17,6 +17,7 @@ export const tags = history.tags.order.map((orderIdx, idx) => ({
   batterySource: history.tags.battery_source[idx],
   harness: history.tags.harness[idx],
   lwl: history.tags.lwl[idx],
+  lwlLength: history.tags.lwl_length[idx],
   weight: history.tags.weight[idx],
   hasData: history.tags.has_data[idx],
   downloads: [],
@@ -51,10 +52,9 @@ for (const d of downloads) {
 for (const s of sensorRecords) s.download.sensors.push(s);
 
 export const END_TYPES = {
-  A: "All sensors logged until read-back",
-  B: "All sensors stopped together before read-back",
-  C: "Sensors stopped at different times",
-  other: "Other",
+  A: "Still recording at read-back",
+  B: "Stopped before read-back",
+  other: "No read-back time",
 };
 
 export function quantile(values, q) {
@@ -84,10 +84,12 @@ export function summarise(values) {
 // Weight of past tags with this type, battery, hardware, harness and light stalk,
 // dropping criteria until at least 20 tags match. `values` are those tags' weights;
 // `context` the weights of all tags matching the same criteria, whatever the battery.
-export function weightStats({ type, battery, hw, harness, lwl }) {
+export function weightStats({ type, battery, hw, harness, lwl, lwlLength }) {
+  const sameStalk = (t) => t.lwl === lwl && (!lwl || !lwlLength || t.lwlLength === lwlLength);
   const steps = [
-    { label: "same hardware, harness and light stalk", f: (t) => (!hw || t.hw === hw) && t.harness === harness && t.lwl === lwl },
-    { label: "same harness and light stalk", f: (t) => t.harness === harness && t.lwl === lwl },
+    { label: "same hardware, harness and light stalk", f: (t) => (!hw || t.hw === hw) && t.harness === harness && sameStalk(t) },
+    { label: "same harness and light stalk", f: (t) => t.harness === harness && sameStalk(t) },
+    { label: "same harness and light stalk (any length)", f: (t) => t.harness === harness && t.lwl === lwl },
     { label: "same harness", f: (t) => t.harness === harness },
     { label: "any harness", f: () => true },
   ];
@@ -112,13 +114,16 @@ export function lifetimeStats({ type, hw, battery }) {
   const sel = downloads.filter(
     (d) => d.tag.type === type && (!hw || d.hw === hw) && (!battery || d.tag.battery === battery) && Number.isFinite(d.days)
   );
-  const stoppedEarly = sel.filter((d) => d.endType === "B");
+  // Records shorter than this are tests or tags that failed at the start
+  const minDays = 20;
+  const stoppedEarly = sel.filter((d) => d.endType === "B" && d.days >= minDays);
   const stillLogging = sel.filter((d) => d.endType === "A");
   return {
     n: sel.length,
     stoppedEarly: summarise(stoppedEarly.map((d) => d.days)),
     stillLogging: summarise(stillLogging.map((d) => d.days)),
-    staggered: sel.filter((d) => d.endType === "C").length,
+    short: sel.filter((d) => d.days < minDays).length,
+    minDays,
     all: sel,
   };
 }
@@ -168,4 +173,35 @@ export function batteryCounts(type, hw) {
     if (t.type === type && (!hw || t.hw === hw) && t.battery) counts[t.battery] = (counts[t.battery] || 0) + 1;
   }
   return counts;
+}
+
+// Main battery class of an order: the class of most of its tags
+function mainBattery(order) {
+  const counts = {};
+  for (const t of order.tags) if (t.battery) counts[t.battery] = (counts[t.battery] || 0) + 1;
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+}
+
+// Intervals past orders of a tag type (and battery) used for one sensor (0 = off), most used first
+export function intervalUsage(type, sensor, battery) {
+  const sel = orders.filter((o) => o.type === type && (!battery || mainBattery(o) === battery));
+  const counts = new Map();
+  for (const o of sel) {
+    const v = o[sensor] > 0 ? o[sensor] : 0;
+    counts.set(v, (counts.get(v) || 0) + 1);
+  }
+  return [...counts]
+    .map(([interval, n]) => ({ interval, n, share: n / sel.length }))
+    .sort((a, b) => b.n - a.n);
+}
+
+// Share of past tags of a type (and battery) with each light stalk length (0 = no stalk)
+export function stalkUsage(type, battery) {
+  const sel = tags.filter((t) => t.type === type && (!battery || t.battery === battery) && t.lwl !== null);
+  const counts = {};
+  for (const t of sel) {
+    const k = t.lwl ? t.lwlLength ?? "unknown" : 0;
+    counts[k] = (counts[k] || 0) + 1;
+  }
+  return Object.fromEntries(Object.entries(counts).map(([k, n]) => [k, n / sel.length]));
 }

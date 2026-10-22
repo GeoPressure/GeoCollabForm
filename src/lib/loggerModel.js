@@ -7,7 +7,7 @@ export const SENSORS = [
   { key: "light", label: "Light", bytes: 2, energyAh: 3e-9, durationH: 1.2 / 3600 },
   { key: "pressure", label: "Pressure", bytes: 2, energyAh: 4e-9, durationH: 0.6 / 3600 },
   { key: "acc", label: "Activity", bytes: 2, energyAh: 53e-9, durationH: 2.3 / 3600 },
-  { key: "mag", label: "Magnetic field", bytes: 13, energyAh: 54e-9, durationH: 1.3 / 3600 },
+  { key: "mag", label: "Magnetic+acceleration (3-axis)", bytes: 13, energyAh: 54e-9, durationH: 1.3 / 3600 },
   { key: "airT", label: "Temperature", bytes: 1, energyAh: 1e-9, durationH: 0.153 / 3600 },
   { key: "bodyT", label: "Body temperature", bytes: 1, energyAh: 1e-9, durationH: 0.153 / 3600 },
 ];

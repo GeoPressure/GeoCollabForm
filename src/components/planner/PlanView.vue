@@ -17,7 +17,9 @@ import {
 import {
   batteryCounts,
   batteryMixture,
+  intervalUsage,
   lifetimeStats,
+  stalkUsage,
   orderSummary,
   relatedOrders,
   sensorStats,
@@ -43,6 +45,7 @@ const plan = reactive({
   battery: "M",
   harness: "leg",
   lwl: 1,
+  lwlLength: 7,
   // Interval in minutes per sensor; 0 switches the sensor off
   intervals: defaultIntervals("GDL3pam"),
   // Advanced settings
@@ -55,6 +58,24 @@ function defaultIntervals(t) {
 }
 
 const showAdvanced = ref(false);
+
+// Light stalk: none, or one of the lengths used in past tags (7 mm is the standard)
+const stalkOptions = [
+  { value: 0, label: "None", title: "No light stalk" },
+  ...[5, 7, 10, 12].map((mm) => ({ value: mm, label: `${mm} mm`, title: mm === 7 ? "Standard length" : `${mm} mm stalk` })),
+];
+const stalkShares = computed(() => stalkUsage(plan.type, plan.battery));
+function stalkShare(mm) {
+  const share = stalkShares.value[mm] || 0;
+  return share >= 0.005 ? `${Math.round(share * 100)}%` : share > 0 ? "<1%" : "–";
+}
+const stalk = computed({
+  get: () => (plan.lwl ? plan.lwlLength : 0),
+  set: (v) => {
+    plan.lwl = v > 0 ? 1 : 0;
+    if (v > 0) plan.lwlLength = v;
+  },
+});
 const speciesSearch = ref("");
 const species = computed(() => speciesById.get(plan.speciesId) || null);
 const speciesOptions = computed(() =>
@@ -92,6 +113,18 @@ watch(batteryChoices, (choices) => {
   if (choices.length && !choices.some((b) => b.key === plan.battery)) plan.battery = choices[0].key;
 });
 
+// How often past orders of this tag type used each interval, per sensor
+const usage = computed(() =>
+  Object.fromEntries(type.value.sensors.map((k) => [k, intervalUsage(plan.type, k, plan.battery)]))
+);
+const usageOrders = computed(() => Object.values(usage.value)[0]?.reduce((a, u) => a + u.n, 0) ?? 0);
+
+// Intervals are whole minutes, 0 or more (the arrows step by 5, but any minute can be typed)
+function cleanInterval(key) {
+  const v = Number(plan.intervals[key]);
+  plan.intervals[key] = Number.isFinite(v) ? Math.max(0, Math.round(v)) : 0;
+}
+
 // Copy a past order's tag, battery, harness and intervals into the plan
 function applyOrder(o) {
   plan.type = o.type;
@@ -125,7 +158,7 @@ const activeIntervals = computed(() => {
 });
 
 const weight = computed(() =>
-  weightStats({ type: plan.type, battery: plan.battery, hw: hw.value, harness: plan.harness, lwl: plan.lwl })
+  weightStats({ type: plan.type, battery: plan.battery, hw: hw.value, harness: plan.harness, lwl: plan.lwl, lwlLength: plan.lwlLength })
 );
 const weightPct = computed(() =>
   weight.value.n && plan.bodyMass > 0 ? (weight.value.median / plan.bodyMass) * 100 : null
@@ -180,7 +213,7 @@ const pastRows = computed(() => {
   const rows = [];
   if (still.n >= 3) {
     rows.push({
-      label: "Still on at read-back",
+      label: `Still on (${still.n} tags)`,
       q: [still.q25, still.median, still.q75],
       tone: "past",
       detail: `${still.n} tags, median ${formatDays(still.median)}, longest ${formatDays(still.max)}`,
@@ -188,7 +221,7 @@ const pastRows = computed(() => {
   }
   if (early.n >= 3) {
     rows.push({
-      label: "Stopped early",
+      label: `Stopped early (${early.n})`,
       q: [early.q25, early.median, early.q75],
       tone: "past",
       detail: `${early.n} tags, median ${formatDays(early.median)} (middle half ${formatDayRange(early.q25, early.q75)})`,
@@ -338,19 +371,39 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
           hide-details
           class="mb-1"
         />
-        <v-switch v-model="plan.lwl" :true-value="1" :false-value="0" label="Light stalk" color="primary" density="compact" hide-details />
+        <div class="planner-stalk">
+          <span class="planner-stalk-label">Light stalk</span>
+          <v-btn-toggle v-model="stalk" mandatory color="primary" variant="outlined" divided density="compact" class="planner-toggle">
+            <v-btn v-for="o in stalkOptions" :key="o.value" :value="o.value" :title="o.title" size="small" class="planner-stalk-btn">
+              <span class="planner-stalk-btn-label">
+                {{ o.label }}
+                <span class="planner-stalk-share">{{ stalkShare(o.value) }}</span>
+              </span>
+            </v-btn>
+          </v-btn-toggle>
+        </div>
       </section>
 
       <section class="planner-step">
         <h3 class="planner-step-title"><span class="planner-step-number">3</span>Recording interval</h3>
         <div class="planner-sensor-list">
-          <label v-for="key in type.sensors" :key="key" :class="['planner-sensor-row', { 'planner-sensor-row--off': !(plan.intervals[key] > 0) }]">
-            <span class="planner-sensor-label">{{ SENSOR_BY_KEY[key].label }}</span>
-            <span class="planner-sensor-field">
-              <input v-model.number="plan.intervals[key]" type="number" min="0" step="1" class="planner-sensor-input" />
-              <span class="planner-sensor-unit">{{ plan.intervals[key] > 0 ? "min" : "off" }}</span>
-            </span>
-          </label>
+          <div v-for="key in type.sensors" :key="key" :class="['planner-sensor-item', { 'planner-sensor-row--off': !(plan.intervals[key] > 0) }]">
+            <label class="planner-sensor-row">
+              <span class="planner-sensor-label">{{ SENSOR_BY_KEY[key].label }}</span>
+              <span class="planner-sensor-field">
+                <input
+                  v-model.number="plan.intervals[key]"
+                  type="number"
+                  min="0"
+                  step="5"
+                  inputmode="numeric"
+                  class="planner-sensor-input"
+                  @change="cleanInterval(key)"
+                />
+                <span class="planner-sensor-unit">{{ plan.intervals[key] > 0 ? "min" : "off" }}</span>
+              </span>
+            </label>
+          </div>
         </div>
       </section>
     </div>
@@ -427,7 +480,7 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
           Weight of {{ weight.n }} past {{ plan.type }} tags with a {{ BATTERIES[plan.battery].label.toLowerCase() }} battery and
           the {{ weight.basis }} (blue), among all {{ weight.context.length }} tags with the {{ weight.basis }}, whatever their
           battery (grey). The logger weight above is their median. When fewer than 20 tags match, the hardware, then the
-          light stalk, then the harness is dropped from the match.
+          stalk length, then the light stalk, then the harness is dropped from the match.
           <br />
           The battery is not recorded per tag. It comes from the cell named in the order remarks (CR1225 large, CR1220
           medium, two 1.5 V cells double small), or else from the order's median weight: a Gaussian mixture fitted to all
@@ -439,29 +492,28 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
       </v-sheet>
 
       <v-sheet border rounded="lg" class="pa-4">
-        <h2 class="planner-section-title">Sensors in past tags at the same interval</h2>
-        <v-table density="compact">
-          <thead>
-            <tr>
-              <th>Sensor</th>
-              <th>Every</th>
-              <th class="text-right">Past records</th>
-              <th class="text-right">Stopped before the others</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="s in sensorHistory" :key="s.key">
-              <td>{{ SENSOR_BY_KEY[s.key].label }}</td>
-              <td class="text-no-wrap">{{ formatInterval(s.interval) }}</td>
-              <td class="text-right">
-                {{ s.past.n }}<span v-if="s.past.n" class="planner-hint"> · median {{ formatDays(s.past.days.median) }}</span>
-              </td>
-              <td class="text-right">
-                {{ s.past.nEarly }}<span v-if="s.past.nEarly" class="planner-hint"> · after median {{ formatDays(s.past.earlyDays.median) }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
+        <h2 class="planner-section-title">Intervals used in past orders</h2>
+        <p v-if="!usageOrders" class="planner-hint mb-0">No past orders with this battery.</p>
+        <div v-for="key in type.sensors" :key="key" class="planner-usage-row">
+          <div class="planner-usage-label">{{ SENSOR_BY_KEY[key].label }}</div>
+          <div class="planner-usage-bars">
+            <span
+              v-for="u in [...usage[key]].sort((a, b) => a.interval - b.interval)"
+              :key="u.interval"
+              :class="['planner-usage-bar', { 'planner-usage-bar--active': (plan.intervals[key] || 0) === u.interval, 'planner-usage-bar--off': !u.interval }]"
+              :style="{ flexGrow: u.n }"
+              :title="`${u.interval ? formatInterval(u.interval) : 'off'}: ${u.n} orders (${Math.round(u.share * 100)}%)`"
+            >
+              <span v-if="u.share >= 0.07">{{ u.interval ? formatInterval(u.interval) : "off" }}</span>
+            </span>
+          </div>
+        </div>
+        <InfoNote label="About this figure">
+          Share of the {{ usageOrders }} past {{ plan.type }} orders with a {{ BATTERIES[plan.battery].label.toLowerCase() }}
+          battery recording each sensor at each interval, whatever the
+          species or outcome, from off (grey) to the longest interval; narrow segments are rare settings (hover for the number of orders). Your current setting is
+          outlined. Settings come from the logger files when they were read back, else from the production database.
+        </InfoNote>
       </v-sheet>
     </div>
 
@@ -474,7 +526,7 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
         <InfoNote>
           <template v-if="battery">
             The {{ BATTERIES[plan.battery].cell }} holds {{ BATTERIES[plan.battery].mAh }} mAh. Each measurement uses a fixed
-            charge (light 3, pressure 4, activity 53, magnetic field 54, temperature 1 nAh), and the tag draws 1.8–2 µA while it
+            charge (light 3, pressure 4, activity 53, magnetic+acceleration 54, temperature 1 nAh), and the tag draws 1.8–2 µA while it
             sleeps between measurements, which gives the range (± in the label, thin dark line on the bar); the bar goes to its middle. The {{ plan.standbyDays }} days of standby before
             logging are subtracted. With these intervals, sleeping uses {{ Math.round(battery.sleepShare * 100) }}% of the energy.
           </template>
@@ -488,10 +540,12 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
         <InfoNote>
           From the raw data of {{ lifetime.n }} read-back {{ plan.type }}{{ hw ? ` ${hw}` : "" }} tags<template
             v-if="plan.battery !== 'LP'"> with a {{ BATTERIES[plan.battery].label.toLowerCase() }} battery</template>, whatever
-          their intervals. <strong>Still on at read-back</strong>: all sensors were recording when the tag was recovered, so the
-          battery lasts at least this long. <strong>Stopped early</strong>: all sensors stopped together before recovery (battery,
-          full memory or failure). Box: middle half of tags; line: median.
-          <template v-if="lifetime.staggered">{{ lifetime.staggered }} other tags had sensors stopping at different times.</template>
+          their intervals. <strong>Still on</strong>: at least one sensor was still recording when the tag was read
+          back, so the battery lasts at least this long. <strong>Stopped early</strong>: the last sensor stopped before read-back
+          (battery, full memory or failure). Box: middle half of tags; line: median.
+          <template v-if="lifetime.short">
+            {{ lifetime.short }} records shorter than {{ lifetime.minDays }} days (tests or failures at the start) are left out.
+          </template>
         </InfoNote>
       </div>
       <div class="planner-limit">
@@ -500,7 +554,7 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
         <InfoNote>
           <template v-if="memoryKB">
             The {{ memoryKB }} memory ({{ plan.type }} {{ hw }}) is split in 256-byte pages, shared between sensors in proportion to
-            the data each writes (light, pressure and activity 2 bytes per measurement, magnetic field 13, temperature 1). Each
+            the data each writes (light, pressure and activity 2 bytes per measurement, magnetic+acceleration 13, temperature 1). Each
             sensor stops when its share is full, so all sensors fill up at about the same time.
           </template>
           <template v-else>No memory model for this tag yet; see past tags.</template>
@@ -550,7 +604,7 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
       </tbody>
     </v-table>
     <InfoNote v-if="relatedRows.length" label="Legend">
-      L = light, P = pressure, A = activity, M = magnetic field, T = temperature, B = body temperature. Days recorded: median
+      L = light, P = pressure, A = activity, M = magnetic+acceleration (3-axis), T = temperature, B = body temperature. Days recorded: median
       over read-back tags. The arrow copies an order's settings into your plan.
     </InfoNote>
   </v-sheet>

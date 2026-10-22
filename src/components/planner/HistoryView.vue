@@ -26,10 +26,20 @@ const filtered = computed(() => {
     (r) =>
       (!q || r.order.toLowerCase().includes(q) || (r.species || "").toLowerCase().includes(q) || (r.country || "").toLowerCase() === q) &&
       (!typeFilter.value || r.type === typeFilter.value) &&
-      (!batteryFilter.value || r.s.batteries[batteryFilter.value] > 0) &&
+      (!batteryFilter.value ||
+        (batteryFilter.value === "unknown" ? r.type === "GDL3pam" && !r.mainBattery : r.s.batteries[batteryFilter.value] > 0)) &&
       (!onlyWithData.value || r.n_data > 0)
   );
 });
+
+// GDL3pam battery classes found in past tags (the GDL2lp battery is built in, see the Tag filter)
+const batteryOptions = [
+  { title: "All batteries", value: null },
+  ...TAG_TYPES.GDL3pam.batteries
+    .filter((b) => orders.some((o) => o.tags.some((t) => t.battery === b)))
+    .map((b) => ({ title: BATTERIES[b].label, value: b })),
+  { title: "Unknown", value: "unknown" },
+];
 
 const totals = computed(() => ({
   orders: filtered.value.length,
@@ -83,7 +93,7 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
       />
       <v-select
         v-model="batteryFilter"
-        :items="[{ title: 'All batteries', value: null }, ...Object.values(BATTERIES).map((b) => ({ title: b.label, value: b.key }))]"
+        :items="batteryOptions"
         label="Battery"
         density="compact"
         hide-details
@@ -109,7 +119,7 @@ const fmt = (v, digits = 0) => (Number.isFinite(v) ? v.toFixed(digits) : "–");
     >
       <template #item.species="{ value }"><em>{{ value || "–" }}</em></template>
       <template #item.type="{ item }">{{ item.type }} {{ item.hw }}</template>
-      <template #item.mainBattery="{ value }">{{ value ? BATTERIES[value].label : "–" }}</template>
+      <template #item.mainBattery="{ value }">{{ value && value !== "LP" ? BATTERIES[value].label : "–" }}</template>
       <template #item.weightMedian="{ value }">{{ value !== null ? `${fmt(value, 2)} g` : "–" }}</template>
       <template #item.n_data="{ item }">{{ item.n_data }}/{{ item.n_tags }}</template>
       <template #item.daysMedian="{ value }">{{ value !== null ? formatDays(value) : "–" }}</template>

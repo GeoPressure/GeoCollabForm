@@ -99,6 +99,7 @@ tags <- tags |>
     weight = round(TotalWeight, 2),
     harness = recode(Harness, "leg harness" = "leg", "breast harness" = "breast", .default = Harness),
     lwl = as.integer(LWL),
+    lwl_length = if_else(lwl == 1, LWL_Length, NA_real_),
     has_data = !is.na(UTC_LastData) | !is.na(DateDownload),
     id = GDL_ID
   ) |>
@@ -203,11 +204,18 @@ downloads <- stops |>
     .groups = "drop"
   ) |>
   filter(days > 1) |>
+  # A tag read twice (e.g. a short file after a restart) keeps its longest record
+  group_by(order, id) |>
+  slice_max(days, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  # How the record ends, from the last sensor to stop: still logging at read-back (A)
+  # or stopped before it (B). Sensors often stop a few days apart when the battery
+  # runs out, and a sensor whose memory share is full stops earlier by design, so
+  # the spread between sensors is not used.
   mutate(
     end_type = case_when(
-      gap_ref <= 2 & spread <= 2 ~ "A",
-      gap_ref > 2 & spread <= 1 ~ "B",
-      spread > 2 ~ "C",
+      gap_ref <= 2 ~ "A",
+      gap_ref > 2 ~ "B",
       TRUE ~ "other"
     )
   )
@@ -362,6 +370,7 @@ out <- list(
     battery_source = tags$battery_source,
     harness = tags$harness,
     lwl = tags$lwl,
+    lwl_length = tags$lwl_length,
     weight = tags$weight,
     has_data = tags$has_data
   ),
