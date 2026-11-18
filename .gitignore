@@ -4,3 +4,10 @@ dist/
 .env.local
 data/*.xlsx
 .DS_Store
+
+# Large external data (BirdLife range maps)
+data/birdlife_range/
+
+# Python cache
+__pycache__/
+*.pyc
