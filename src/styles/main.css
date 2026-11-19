@@ -344,16 +344,17 @@ a:hover {
 
 .species-profile-header {
   display: flex;
-  align-items: baseline;
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 14px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
 }
 
 .species-profile-title {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.25;
 }
 
 .species-profile-name {
@@ -378,6 +379,31 @@ a:hover {
 
 .species-profile-link:hover {
   text-decoration: underline;
+}
+
+.species-profile-top {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.species-profile-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.species-sticker {
+  flex: 0 0 auto;
+  width: 190px;
+  height: 150px;
+  margin: -8px 0 -8px;
+  object-fit: contain;
+  object-position: right center;
+  filter: drop-shadow(0 2px 3px rgba(31, 42, 40, 0.16));
 }
 
 .species-feedback-title {
@@ -724,6 +750,16 @@ a:hover {
   .species-profile-header {
     align-items: flex-start;
     gap: 8px;
+  }
+
+  .species-profile-top {
+    gap: 12px;
+  }
+
+  .species-sticker {
+    width: 116px;
+    height: 104px;
+    margin: 0;
   }
 
   .species-profile-title {

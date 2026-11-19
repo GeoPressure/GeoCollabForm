@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import packageJson from "../../package.json";
 import joinedSpeciesCsv from "../data/avilist_soi_avonet_joined.csv?raw";
+import { BIRD_STICKER_REPO_URL, birdStickerUrl } from "../lib/birdSticker";
 import { buildSpeciesFeedback } from "../lib/species";
 import { parseSpeciesRecordsFromJoinedCsv } from "../lib/speciesCatalog";
 import { createDefaultFormDraft } from "../types";
@@ -42,6 +43,11 @@ const speciesFeedback = computed(() => buildSpeciesFeedback(selectedSpecies.valu
 const speciesBirdsOfWorldUrl = computed(() => {
   if (!selectedSpecies.value) return "";
   return selectedSpecies.value.birds_of_the_world_url;
+});
+const speciesStickerUrl = computed(() => birdStickerUrl(selectedSpecies.value));
+const speciesStickerFailed = ref(false);
+watch(speciesStickerUrl, () => {
+  speciesStickerFailed.value = false;
 });
 const hasGoogleSheetsWebhook = computed(() => GOOGLE_SHEETS_WEBHOOK_URL.length > 0);
 const isSubmitting = computed(() => submissionState.value === "submitting");
@@ -726,27 +732,39 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
             rounded="lg"
             data-testid="species-feedback"
           >
-            <div class="species-profile-header">
-              <h3 class="species-profile-title mb-0">
-                <span class="species-profile-name">{{ selectedSpecies.common_name }}</span>
-                <span class="species-profile-latin">
-                  (<em>{{ selectedSpecies.scientific_name }}</em
-                  >)
-                </span>
-              </h3>
-              <a
-                class="species-profile-link"
-                :href="speciesBirdsOfWorldUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <v-icon icon="mdi-open-in-new" size="16" />
-                <span>BOW species page</span>
-              </a>
-            </div>
-
-            <div class="font-weight-medium species-feedback-title mt-4">
-              {{ speciesFeedback.title }}
+            <div class="species-profile-top">
+              <div class="species-profile-main">
+                <div class="species-profile-header">
+                  <h3 class="species-profile-title mb-0">
+                    <span class="species-profile-name">{{ selectedSpecies.common_name }}</span>
+                    <span class="species-profile-latin">
+                      <em>{{ selectedSpecies.scientific_name }}</em>
+                    </span>
+                  </h3>
+                  <a
+                    class="species-profile-link"
+                    :href="speciesBirdsOfWorldUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <v-icon icon="mdi-open-in-new" size="16" />
+                    <span>BOW species page</span>
+                  </a>
+                </div>
+                <div class="font-weight-medium species-feedback-title">
+                  {{ speciesFeedback.title }}
+                </div>
+              </div>
+              <img
+                v-if="speciesStickerUrl && !speciesStickerFailed"
+                :key="speciesStickerUrl"
+                class="species-sticker"
+                :src="speciesStickerUrl"
+                :alt="`Illustration of ${selectedSpecies.common_name}`"
+                decoding="async"
+                data-testid="species-sticker"
+                @error="speciesStickerFailed = true"
+              />
             </div>
             <div class="species-checks-grid mt-3">
               <div
@@ -807,6 +825,12 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
                 target="_blank"
                 rel="noopener noreferrer"
               >AVONET</a>.
+              <template v-if="speciesStickerUrl && !speciesStickerFailed">
+                Illustration from
+                <a :href="BIRD_STICKER_REPO_URL" target="_blank" rel="noopener noreferrer"
+                  >huashu-bird-sticker</a
+                >.
+              </template>
             </p>
           </v-sheet>
         </section>
